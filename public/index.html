@@ -1821,6 +1821,51 @@ Rules:
     'Two quick choices and an optional calendar sync — and your personalized study schedule is ready.',
   ];
 
+  // Landing page state (step 0)
+  const [showLanding, setShowLanding] = useState(true);
+
+  if (showLanding) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e1b4b 0%, #4f46e5 50%, #7c3aed 100%)' }} className="flex items-center justify-center p-6">
+        <div className="card w-full fade-in" style={{ maxWidth: 480 }}>
+          {/* Hero */}
+          <div style={{ padding: '40px 36px 28px', textAlign: 'center', borderBottom: '1px solid #F3F4F6' }}>
+            <div style={{ width: 64, height: 64, borderRadius: 20, background: 'linear-gradient(135deg, #EB7100, #F59E0B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, margin: '0 auto 18px' }}>🎓</div>
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: '#111827', margin: '0 0 10px', letterSpacing: '-0.5px' }}>Meet Finals Coach</h1>
+            <p style={{ fontSize: 15, color: '#6B7280', margin: 0, lineHeight: 1.6 }}>Your AI-powered study partner for finals season — built right inside Chegg.</p>
+          </div>
+
+          {/* Value props */}
+          <div style={{ padding: '24px 36px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {[
+              { icon: '📅', title: 'Personalized study schedule', desc: 'We rank your exams by grade impact and build a day-by-day plan around your free time.' },
+              { icon: '📖', title: 'AI study guides per course', desc: 'Upload your syllabus and Finals Coach generates a focused guide covering every topic on your final.' },
+              { icon: '🎯', title: 'Grade gap analysis', desc: 'See exactly what score you need on each final to hit your semester goal — no guessing.' },
+              { icon: '📝', title: 'Practice quizzes on demand', desc: 'Test yourself on any topic, get instant feedback, and track what you\'ve mastered.' },
+            ].map(({ icon, title, desc }) => (
+              <div key={title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                <div style={{ width: 38, height: 38, borderRadius: 12, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{icon}</div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 2 }}>{title}</div>
+                  <div style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5 }}>{desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA */}
+          <div style={{ padding: '0 36px 32px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <button onClick={() => setShowLanding(false)}
+              style={{ width: '100%', padding: '14px', borderRadius: 14, background: 'linear-gradient(135deg, #EB7100, #F59E0B)', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif', boxShadow: '0 4px 14px rgba(235,113,0,0.35)' }}>
+              Get started 🚀
+            </button>
+            <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', margin: 0 }}>Takes under 2 minutes to set up</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e1b4b 0%, #4f46e5 50%, #7c3aed 100%)' }} className="flex items-center justify-center p-6">
       <div className="card w-full fade-in" style={{ maxWidth: 540 }}>
