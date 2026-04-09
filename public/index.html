@@ -1,0 +1,3320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Finals Coach</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet"/>
+<style>
+  /* ── New Horizon 2.0 Design Tokens ── */
+  :root {
+    --orange:       #EB7100;
+    --orange-light: #FFF3E8;
+    --orange-mid:   #FFBC80;
+    --orange-dark:  #C55E00;
+    --dark:         #302C41;
+    --dark-80:      rgba(48,44,65,0.08);
+    --neutral-50:   #F7F6FA;
+    --neutral-100:  #EDEAF4;
+    --neutral-200:  #D5D1E6;
+    --neutral-400:  #9991BF;
+    --violet-100:   #ECEAF9;
+    --white:        #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F7F6FA; color: #302C41; }
+  .sidebar { background: #302C41; }
+  .nav-item { transition: all 0.15s; border-radius: 8px; }
+  .nav-item:hover { background: rgba(255,255,255,0.08); }
+  .nav-item.active { background: #EB7100; }
+  .card { background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(48,44,65,0.08), 0 4px 12px rgba(48,44,65,0.04); border: 1px solid #EDEAF4; }
+  .btn-primary { background: #EB7100; color: white; border-radius: 100px; padding: 10px 20px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; font-family: 'Inter', sans-serif; letter-spacing: -0.1px; }
+  .btn-primary:hover { background: #C55E00; box-shadow: 0 4px 12px rgba(235,113,0,0.35); }
+  .btn-secondary { background: #F7F6FA; color: #302C41; border-radius: 100px; padding: 10px 20px; font-weight: 600; cursor: pointer; border: 1.5px solid #D5D1E6; transition: all 0.15s; font-family: 'Inter', sans-serif; }
+  .btn-secondary:hover { background: #EDEAF4; border-color: #B8B2D4; }
+  .urgent-banner { background: #D62B2B; border-radius: 12px; color: white; }
+  .warning-banner { background: #EB7100; border-radius: 12px; color: white; }
+  .info-banner { background: #302C41; border-radius: 12px; color: white; }
+  .progress-bar { background: #EDEAF4; border-radius: 99px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+  .chat-panel { position: fixed; right: 0; top: 0; height: 100vh; width: 380px; background: white; box-shadow: -4px 0 20px rgba(48,44,65,0.12); z-index: 100; display: flex; flex-direction: column; }
+  .chat-msg-ai { background: #F7F6FA; border-radius: 14px 14px 14px 4px; }
+  .chat-msg-user { background: #EB7100; color: white; border-radius: 14px 14px 4px 14px; }
+  .badge-urgent { background: #FDDEDE; color: #D62B2B; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+  .badge-ok { background: #D4F0E0; color: #1E8A4A; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+  .badge-soon { background: #FFF3CC; color: #C17D00; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+  .slide-in { animation: slideIn 0.3s ease; }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .fade-in { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .pulse-dot { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .api-screen { min-height: 100vh; background: #302C41; }
+  .scrollable { overflow-y: auto; }
+  .scrollable::-webkit-scrollbar { width: 4px; }
+  .scrollable::-webkit-scrollbar-track { background: transparent; }
+  .scrollable::-webkit-scrollbar-thumb { background: #D5D1E6; border-radius: 99px; }
+  textarea:focus, input:focus { outline: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const TODAY = new Date('2026-04-21');
+const daysUntil = (dateStr) => {
+  if (!dateStr) return 999;
+  const d = new Date(dateStr + 'T12:00:00');
+  return Math.ceil((d - TODAY) / (1000 * 60 * 60 * 24));
+};
+
+// Priority score: higher = needs more attention
+// Formula: finalWeight × (100 - currentGrade) × (1 / daysUntil) × 100
+const priorityScore = (c) => {
+  const d = daysUntil(c.finalDate);
+  if (d <= 0 || !c.finalDate) return 0;
+  return Math.round((c.finalWeight || 30) * (100 - (c.currentGrade || 75)) / d);
+};
+
+// Parse numeric target from a goal string like "B (83%)" → 83
+const parseGoalPct = (goalStr) => {
+  if (!goalStr) return 83;
+  const m = goalStr.match(/(\d+)/);
+  return m ? parseInt(m[1]) : 83;
+};
+
+// Grade goal options shared across onboarding + per-course override
+const GRADE_GOAL_OPTIONS = [
+  { label: 'A (93%)',    pct: 93 },
+  { label: 'A- (90%)',  pct: 90 },
+  { label: 'B+ (87%)',  pct: 87 },
+  { label: 'B (83%)',   pct: 83 },
+  { label: 'B- (80%)',  pct: 80 },
+  { label: 'C (73%)',   pct: 73 },
+];
+
+// Compute grade needed on final to reach target
+const calcGradeNeeded = (course, targetPct) => {
+  return Math.round((targetPct - (course.currentGrade * (1 - course.finalWeight / 100))) / (course.finalWeight / 100));
+};
+
+// Parse max daily study hours from onboarding string e.g. "4-5" → 5, "5+" → 5.5
+const parseMaxHours = (str) => {
+  if (!str) return 4;
+  if (str === '5+') return 5.5;
+  const nums = str.match(/\d+/g);
+  return nums ? Math.max(...nums.map(Number)) : 4;
+};
+
+// ─── ICAL PARSER ─────────────────────────────────────────────────────────────
+const parseICSDate = (str) => {
+  const bare = str.trim().replace('Z', '');
+  if (bare.includes('T')) {
+    const d = bare.slice(0, 8), t = bare.slice(9);
+    return new Date(`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}T${t.slice(0,2)}:${t.slice(2,4)}:${t.slice(4,6)}`);
+  }
+  return new Date(`${bare.slice(0,4)}-${bare.slice(4,6)}-${bare.slice(6,8)}T12:00:00`);
+};
+
+const parseICS = (text) => {
+  const raw = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const lines = [];
+  for (const line of raw) {
+    if ((line.startsWith(' ') || line.startsWith('\t')) && lines.length) lines[lines.length - 1] += line.slice(1);
+    else lines.push(line);
+  }
+  const events = [];
+  let cur = null;
+  for (const line of lines) {
+    if (line === 'BEGIN:VEVENT') { cur = {}; continue; }
+    if (line === 'END:VEVENT' && cur) { if (cur.start && cur.title) events.push(cur); cur = null; continue; }
+    if (!cur) continue;
+    const ci = line.indexOf(':');
+    if (ci === -1) continue;
+    const key = line.slice(0, ci).split(';')[0].toUpperCase();
+    const val = line.slice(ci + 1).trim();
+    if (key === 'DTSTART') cur.start = parseICSDate(val);
+    else if (key === 'DTEND')   cur.end   = parseICSDate(val);
+    else if (key === 'SUMMARY') cur.title = val;
+  }
+  return events;
+};
+
+const findFreeBlocks = (events, fromDate, toDate) => {
+  const blocks = [];
+  const cur = new Date(fromDate); cur.setHours(0, 0, 0, 0);
+  const end = new Date(toDate);   end.setHours(0, 0, 0, 0);
+  while (cur <= end) {
+    const ds = cur.toISOString().split('T')[0];
+    const winStart = new Date(ds + 'T08:00:00');
+    const winEnd   = new Date(ds + 'T22:00:00');
+    const dayEvts  = events
+      .filter(e => e.start && e.end && e.start < winEnd && e.end > winStart)
+      .sort((a, b) => a.start - b.start);
+    let probe = new Date(winStart);
+    for (const e of dayEvts) {
+      if (e.start > probe) {
+        const hrs = (e.start - probe) / 3600000;
+        if (hrs >= 1) blocks.push({ date: ds, startHour: probe.getHours() + probe.getMinutes() / 60, endHour: e.start.getHours() + e.start.getMinutes() / 60, hours: Math.round(hrs * 2) / 2, label: `${Math.round(hrs * 2) / 2}h free` });
+      }
+      if (e.end > probe) probe = new Date(e.end);
+    }
+    if (winEnd > probe) {
+      const hrs = (winEnd - probe) / 3600000;
+      if (hrs >= 1) blocks.push({ date: ds, startHour: probe.getHours() + probe.getMinutes() / 60, endHour: 22, hours: Math.round(hrs * 2) / 2, label: `${Math.round(hrs * 2) / 2}h free` });
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return blocks;
+};
+
+const fmtHour = (h) => {
+  const hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+  const ampm = hh >= 12 ? 'pm' : 'am';
+  const disp = hh > 12 ? hh - 12 : hh === 0 ? 12 : hh;
+  return mm ? `${disp}:${String(mm).padStart(2, '0')}${ampm}` : `${disp}${ampm}`;
+};
+
+// ─── SMART STUDY SCHEDULE BUILDER ────────────────────────────────────────────
+// Builds a prioritized study plan from courses, study guide mastery, and profile.
+// Returns rows: { key, date, startHour, timeLabel, hours, course, topicFocus }
+const buildStudySchedule = (courses, sgLecturesByC, profile) => {
+  if (!profile || !courses || courses.length === 0) return [];
+
+  const maxPerDay = parseMaxHours(profile?.studyHours || '4-5');
+  const profileTarget = parseGoalPct(profile?.gradeGoal);
+  const SLOT_LEN = 1.5;
+  const BREAK_LEN = 0.25;
+
+  // Per-course urgency + topics analysis
+  const courseData = courses
+    .filter(c => daysUntil(c.finalDate) > 0)
+    .map(c => {
+      const days = Math.max(1, daysUntil(c.finalDate));
+      const goalPct = c.courseGoal ?? profileTarget;
+      const gradeGap = Math.max(0, calcGradeNeeded(c, goalPct));
+
+      // Use study guide mastery if available, else fall back to course.topics
+      const sgLecs = (sgLecturesByC || {})[c.id] || [];
+      const hasGuide = sgLecs.some(l => l.status === 'ready');
+      let topicsLeft = [];
+      if (hasGuide) {
+        for (const lec of sgLecs) {
+          if (!lec.guide?.topics) continue;
+          lec.guide.topics.forEach((t, ti) => {
+            if (!lec.understood?.[ti]) {
+              // t may be a string or {name, summary, concepts} object
+              topicsLeft.push({ name: typeof t === 'string' ? t : (t.name || `Topic ${ti + 1}`), lecture: lec.label || '' });
+            }
+          });
+        }
+      } else {
+        const unStudied = c.topics.filter(t => !t.studied);
+        topicsLeft = (unStudied.length > 0 ? unStudied : c.topics).map(t => ({ name: t.name || t }));
+      }
+
+      // Urgency: combines exam weight, grade gap pressure, and time crunch
+      const urgency = (c.finalWeight / 100) * (1 + gradeGap / 100) * (60 / days);
+      return { course: c, urgency, topicsLeft, days };
+    })
+    .filter(cd => cd.topicsLeft.length > 0);
+
+  if (courseData.length === 0) return [];
+
+  courseData.sort((a, b) => b.urgency - a.urgency);
+  const totalUrgency = courseData.reduce((s, cd) => s + cd.urgency, 0) || 1;
+
+  const rows = [];
+  const courseTopicIdx = {}; // next topic pointer per course
+
+  const pickCourse = (dateHoursUsed) => {
+    // Choose course most under-served relative to urgency share
+    let best = courseData[0], bestDiff = -Infinity;
+    const totalUsed = Object.values(dateHoursUsed).reduce((s, v) => s + v, 0) + SLOT_LEN;
+    for (const cd of courseData) {
+      const ideal = (cd.urgency / totalUrgency) * totalUsed;
+      const actual = dateHoursUsed[cd.course.id] || 0;
+      if (ideal - actual > bestDiff) { bestDiff = ideal - actual; best = cd; }
+    }
+    return best;
+  };
+
+  const getTopicFocus = (cd) => {
+    const idx = courseTopicIdx[cd.course.id] || 0;
+    const slice = cd.topicsLeft.slice(idx, idx + 2).map(t => t.name);
+    courseTopicIdx[cd.course.id] = (idx + 2) % Math.max(1, cd.topicsLeft.length);
+    return slice.join(', ') || cd.course.name;
+  };
+
+  const toDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  if (profile?.freeBlocks?.length > 0) {
+    // Schedule into actual free time slots
+    const dayUsed = {};
+    for (const blk of profile.freeBlocks) {
+      if (rows.length >= 50) break;
+      let cursor = blk.startHour;
+      while (cursor + 1 <= blk.endHour && rows.length < 50) {
+        const used = dayUsed[blk.date] || 0;
+        if (used >= maxPerDay) break;
+        const allowed = Math.min(maxPerDay - used, SLOT_LEN, blk.endHour - cursor);
+        if (allowed < 1) break;
+        const slotHours = Math.round(allowed * 2) / 2;
+
+        // Filter only courses whose finals haven't passed (no finalDate = always upcoming)
+        const dayBlkDate = new Date(blk.date + 'T12:00:00');
+        const avail = courseData.filter(cd => !cd.course.finalDate || new Date(cd.course.finalDate + 'T12:00:00') > dayBlkDate);
+        if (avail.length === 0) break;
+
+        const dateHoursUsed = {};
+        rows.filter(r => r.date === blk.date).forEach(r => {
+          dateHoursUsed[r.course.id] = (dateHoursUsed[r.course.id] || 0) + r.hours;
+        });
+        const cd = avail.reduce((best, cd) => {
+          const ideal = (cd.urgency / totalUrgency) * ((dayUsed[blk.date] || 0) + slotHours);
+          const actual = dateHoursUsed[cd.course.id] || 0;
+          const prev = (best.urgency / totalUrgency) * ((dayUsed[blk.date] || 0) + slotHours) - (dateHoursUsed[best.course.id] || 0);
+          return (ideal - actual > prev) ? cd : best;
+        }, avail[0]);
+
+        rows.push({
+          key: `${blk.date}-${cursor}-${cd.course.id}`,
+          date: blk.date,
+          startHour: cursor,
+          timeLabel: `${fmtHour(cursor)}–${fmtHour(cursor + slotHours)}`,
+          hours: slotHours,
+          course: cd.course,
+          topicFocus: getTopicFocus(cd),
+        });
+
+        dayUsed[blk.date] = used + slotHours;
+        cursor += slotHours + BREAK_LEN;
+      }
+    }
+  } else {
+    // No calendar — generate day-only sessions spread across upcoming days
+    const maxDays = Math.max(...courseData.map(cd => cd.days), 30);
+    for (let dayOff = 0; rows.length < 40 && dayOff < maxDays; dayOff++) {
+      const d = new Date(TODAY); d.setDate(TODAY.getDate() + dayOff);
+      const ds = toDateStr(d);
+      const avail = courseData.filter(cd => !cd.course.finalDate || new Date(cd.course.finalDate + 'T12:00:00') > d);
+      if (avail.length === 0) continue;
+
+      let hoursToday = 0;
+      for (let si = 0; hoursToday + 1 <= maxPerDay && si < avail.length && rows.length < 40; si++) {
+        const cd = avail[si % avail.length];
+        const slotHours = Math.min(SLOT_LEN, maxPerDay - hoursToday);
+        if (slotHours < 1) break;
+        rows.push({
+          key: `${ds}-${si}-${cd.course.id}`,
+          date: ds,
+          startHour: null,
+          timeLabel: null,
+          hours: slotHours,
+          course: cd.course,
+          topicFocus: getTopicFocus(cd),
+        });
+        hoursToday += slotHours;
+      }
+    }
+  }
+
+  return rows;
+};
+
+const COURSES = [
+  {
+    id: 'dbms', name: 'Database Management Systems', code: 'MIS 3250',
+    professor: 'Dr. Jennifer Holt', finalDate: '2026-05-05',
+    currentGrade: 78, finalWeight: 25,
+    color: 'from-indigo-500 to-indigo-600', emoji: '🗄️',
+    officeHours: 'Tue 1–3 PM · Thu 10 AM–12 PM',
+    gradingBreakdown: [
+      { component: 'Labs (10)', weight: '20%' }, { component: 'SQL Quizzes (4)', weight: '15%' },
+      { component: 'Group Project', weight: '10%' }, { component: 'Midterm', weight: '25%' }, { component: 'Final Exam', weight: '25%' }, { component: 'Participation', weight: '5%' }
+    ],
+    topics: [
+      { id: 1, name: 'Entity-Relationship Diagrams', studied: true, mastery: 82 },
+      { id: 2, name: 'Relational Model & Normalization', studied: true, mastery: 75 },
+      { id: 3, name: 'SQL Fundamentals — SELECT, WHERE, JOIN', studied: true, mastery: 88 },
+      { id: 4, name: 'Advanced SQL — Subqueries & Aggregation', studied: true, mastery: 70 },
+      { id: 5, name: 'Views, Stored Procedures & Triggers', studied: false, mastery: 0 },
+      { id: 6, name: 'Indexing & Query Optimization', studied: false, mastery: 0 },
+      { id: 7, name: 'Transactions & Concurrency (ACID)', studied: false, mastery: 0 },
+      { id: 8, name: 'Database Security & Access Control', studied: false, mastery: 0 },
+      { id: 9, name: 'NoSQL Systems — MongoDB, Cassandra', studied: false, mastery: 0 },
+      { id: 10, name: 'Cloud Databases & Big Data', studied: false, mastery: 0 },
+    ]
+  },
+  {
+    id: 'strategy', name: 'Business Strategy & Policy', code: 'BUS 3410',
+    professor: 'Prof. Marcus Reed', finalDate: '2026-05-08',
+    currentGrade: 85, finalWeight: 35,
+    color: 'from-amber-500 to-orange-500', emoji: '♟️',
+    officeHours: 'Mon 2–4 PM',
+    gradingBreakdown: [
+      { component: 'Case Participation', weight: '20%' }, { component: 'Group Project', weight: '20%' },
+      { component: 'Midterm', weight: '25%' }, { component: 'Final Exam', weight: '35%' }
+    ],
+    topics: [
+      { id: 1, name: "Porter's Five Forces", studied: true, mastery: 90 },
+      { id: 2, name: 'SWOT & PESTEL Analysis', studied: true, mastery: 85 },
+      { id: 3, name: 'Competitive Advantage & Value Chain', studied: true, mastery: 78 },
+      { id: 4, name: 'Corporate vs. Business Strategy', studied: false, mastery: 0 },
+      { id: 5, name: 'Growth Strategies — Ansoff Matrix', studied: false, mastery: 0 },
+      { id: 6, name: 'M&A and Strategic Alliances', studied: false, mastery: 0 },
+      { id: 7, name: 'International Strategy & Globalization', studied: false, mastery: 0 },
+      { id: 8, name: 'Strategy Implementation & Change Mgmt', studied: false, mastery: 0 },
+    ]
+  },
+  {
+    id: 'pm', name: 'IT Project Management', code: 'MIS 3500',
+    professor: 'Dr. Sarah Kim', finalDate: '2026-05-12',
+    currentGrade: 91, finalWeight: 25,
+    color: 'from-teal-500 to-cyan-600', emoji: '📋',
+    officeHours: 'Wed 3–5 PM',
+    gradingBreakdown: [
+      { component: 'Assignments', weight: '25%' }, { component: 'Group Project', weight: '30%' },
+      { component: 'Midterm', weight: '20%' }, { component: 'Final Exam', weight: '25%' }
+    ],
+    topics: [
+      { id: 1, name: 'Agile & Scrum Framework', studied: true, mastery: 92 },
+      { id: 2, name: 'Project Charter & Scope Management', studied: true, mastery: 88 },
+      { id: 3, name: 'Gantt Charts & Scheduling', studied: true, mastery: 85 },
+      { id: 4, name: 'Risk Management & Mitigation', studied: true, mastery: 80 },
+      { id: 5, name: 'Stakeholder Communication', studied: false, mastery: 0 },
+      { id: 6, name: 'Budget & Cost Management', studied: false, mastery: 0 },
+      { id: 7, name: 'Quality Assurance & Testing', studied: false, mastery: 0 },
+      { id: 8, name: 'Project Closure & Lessons Learned', studied: false, mastery: 0 },
+    ]
+  },
+  {
+    id: 'stats', name: 'Applied Regression Analysis', code: 'STAT 4100',
+    professor: 'Dr. Paul Nguyen', finalDate: '2026-05-15',
+    currentGrade: 72, finalWeight: 30,
+    color: 'from-purple-500 to-violet-600', emoji: '📈',
+    officeHours: 'Thu 1–3 PM',
+    gradingBreakdown: [
+      { component: 'Problem Sets', weight: '30%' }, { component: 'Midterm', weight: '30%' },
+      { component: 'Final Exam', weight: '30%' }, { component: 'Participation', weight: '10%' }
+    ],
+    topics: [
+      { id: 1, name: 'Simple Linear Regression', studied: true, mastery: 75 },
+      { id: 2, name: 'Multiple Regression', studied: true, mastery: 68 },
+      { id: 3, name: 'Model Diagnostics & Assumptions', studied: false, mastery: 0 },
+      { id: 4, name: 'ANOVA & F-Tests', studied: false, mastery: 0 },
+      { id: 5, name: 'Logistic Regression', studied: false, mastery: 0 },
+      { id: 6, name: 'Variable Selection Methods', studied: false, mastery: 0 },
+      { id: 7, name: 'R Programming for Regression', studied: false, mastery: 0 },
+    ]
+  },
+];
+
+// ─── API ─────────────────────────────────────────────────────────────────────
+async function callAPI(apiKey, system, messages, maxTokens = 4000) {
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey, system, messages, max_tokens: maxTokens })
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || 'API error');
+  // Server returns { content: "string" } — guard against array format too
+  return typeof data.content === 'string' ? data.content : data.content[0]?.text;
+}
+// Alias so existing callClaude call-sites keep working
+const callClaude = callAPI;
+
+// ─── CHAT PANEL ──────────────────────────────────────────────────────────────
+function ChatPanel({ open, onClose, apiKey, systemPrompt, title, suggestions }) {
+  const [msgs, setMsgs] = useState([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    if (bottomRef.current) bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+  }, [msgs, loading]);
+
+  const send = async (text) => {
+    const txt = (text || input).trim();
+    if (!txt || loading) return;
+    setInput('');
+    const userMsg = { role: 'user', content: txt };
+    const newMsgs = [...msgs, userMsg];
+    setMsgs(newMsgs);
+    setLoading(true);
+    try {
+      const reply = await callClaude(apiKey, systemPrompt, newMsgs);
+      setMsgs([...newMsgs, { role: 'assistant', content: reply }]);
+    } catch (e) {
+      setMsgs([...newMsgs, { role: 'assistant', content: `⚠️ ${e.message}` }]);
+    }
+    setLoading(false);
+  };
+
+  if (!open) return null;
+  return (
+    <div className="chat-panel slide-in">
+      <div className="flex items-center justify-between px-5 py-4" style={{ background: '#302C41', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div>
+          <div className="font-bold text-white text-sm" style={{ letterSpacing: '-0.2px' }}>{title}</div>
+          <div className="text-xs flex items-center gap-1.5 mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            <span className="w-1.5 h-1.5 rounded-full pulse-dot inline-block" style={{ background: '#1E8A4A' }}></span>
+            Finals Coach · Active
+          </div>
+        </div>
+        <button onClick={onClose} className="text-white opacity-50 hover:opacity-100 text-lg leading-none transition-opacity">✕</button>
+      </div>
+      <div className="flex-1 scrollable p-4 space-y-3" style={{ overflowY: 'auto' }}>
+        {msgs.length === 0 && (
+          <div className="text-center py-6">
+            <div className="text-3xl mb-2">🎓</div>
+            <div className="text-gray-500 text-sm font-medium mb-4">Ask me anything</div>
+            {suggestions && suggestions.map((s, i) => (
+              <button key={i} onClick={() => send(s)}
+                className="block w-full text-left mb-2 px-3 py-2 rounded-xl text-sm text-orange-700 hover:bg-orange-50 border border-orange-100 transition-all">
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+        {msgs.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`px-4 py-3 text-sm max-w-xs leading-relaxed ${m.role === 'user' ? 'chat-msg-user' : 'chat-msg-ai text-gray-800'}`}
+              style={{ whiteSpace: 'pre-wrap' }}>
+              {m.content}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="chat-msg-ai px-4 py-3 text-sm text-gray-500">
+              <span className="pulse-dot inline-block">Finals Coach is thinking…</span>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef}/>
+      </div>
+      <div className="p-4 border-t bg-gray-50">
+        <div className="flex gap-2">
+          <input value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
+            placeholder="Ask anything…"
+            className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:border-orange-400"/>
+          <button onClick={() => send()} disabled={loading || !input.trim()}
+            className="btn-primary px-4 py-2 text-sm disabled:opacity-40">↑</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── API KEY SCREEN ───────────────────────────────────────────────────────────
+function ApiKeyScreen({ onSubmit }) {
+  const [key, setKey] = useState('');
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    if (!key.trim().startsWith('sk-')) { setErr('Please enter a valid Anthropic API key (starts with sk-)'); return; }
+    setLoading(true); setErr('');
+    try {
+      await callClaude(key.trim(), 'Say "connected" in exactly one word.', [{ role: 'user', content: 'test' }]);
+      onSubmit(key.trim());
+    } catch (e) {
+      setErr('Could not connect: ' + e.message);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="api-screen flex items-center justify-center p-6">
+      <div style={{ maxWidth: 420, width: '100%' }}>
+        <div className="text-center mb-8">
+          <div className="text-6xl mb-4">🎓</div>
+          <h1 className="text-3xl font-bold text-white" style={{ letterSpacing: '-0.5px' }}>Finals Coach</h1>
+          <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.5)' }}>Your AI-powered finals prep, by Chegg</p>
+        </div>
+        <div className="card p-8 fade-in">
+          <div className="rounded-xl p-4 mb-6 text-sm" style={{ background: '#FFF3E8', color: '#9A3412', border: '1px solid #FFBC80' }}>
+            <strong>Prototype Demo</strong> — powered by Finals Coach. Enter your Anthropic API key to get started.
+            The key is used only for this session and never stored.
+          </div>
+          <label className="block text-sm font-semibold mb-1.5" style={{ color: '#302C41' }}>Anthropic API Key</label>
+          <input type="password" value={key} onChange={e => setKey(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && submit()}
+            placeholder="sk-ant-..."
+            className="w-full px-4 py-3 text-sm mb-3" style={{ borderRadius: 10, border: '1.5px solid #D5D1E6', background: '#F7F6FA', color: '#302C41', fontFamily: 'Inter,sans-serif' }}/>
+          {err && <div className="text-red-500 text-xs mb-3">{err}</div>}
+          <button onClick={submit} disabled={loading} className="btn-primary w-full py-3 text-sm">
+            {loading ? 'Verifying key…' : 'Get Started →'}
+          </button>
+          <p className="text-center text-xs mt-3" style={{ color: '#9991BF' }}>
+            Get your key at <span style={{ color: '#EB7100' }}>console.anthropic.com</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function Dashboard({ courses, setCourses, onNavigate, profile, sgLecturesByC }) {
+  const [showAddCourse, setShowAddCourse] = useState(false);
+  const [newCourse, setNewCourse] = useState({ name:'', professor:'', finalDate:'', currentGrade:'', finalWeight:'' });
+  const [icsEvents, setIcsEvents] = useState([]);
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [manualEvents, setManualEvents] = useState([]);
+  const [showAddEvent, setShowAddEvent] = useState(false);
+  const [newEvent, setNewEvent] = useState({ title:'', date:'', time:'' });
+  const icsRef = useRef(null);
+
+  // ICS file parser
+  const parseICS = (text) => {
+    const events = [];
+    const blocks = text.split('BEGIN:VEVENT').slice(1);
+    for (const block of blocks) {
+      const get = (key) => { const m = block.match(new RegExp(key + '[^:]*:([^\\r\\n]+)')); return m ? m[1].trim() : ''; };
+      const raw = get('DTSTART');
+      const rawEnd = get('DTEND');
+      const summary = get('SUMMARY') || 'Event';
+      if (!raw) continue;
+      const ds = raw.replace('Z','').replace(/\.\d+$/,'');
+      const dateStr = `${ds.slice(0,4)}-${ds.slice(4,6)}-${ds.slice(6,8)}`;
+      const timeStr = ds.length >= 13 ? `${ds.slice(9,11)}:${ds.slice(11,13)}` : null;
+      const endDs = rawEnd ? rawEnd.replace('Z','') : '';
+      const endTimeStr = endDs.length >= 13 ? `${endDs.slice(9,11)}:${endDs.slice(11,13)}` : null;
+      events.push({ summary, date: dateStr, time: timeStr, endTime: endTimeStr });
+    }
+    return events;
+  };
+  const handleICSImport = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setIcsEvents(parseICS(ev.target.result));
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // Sort by priority: days remaining + grade impact + coverage
+  const ranked = [...courses].sort((a, b) => {
+    const dA = daysUntil(a.finalDate), dB = daysUntil(b.finalDate);
+    const pA = a.topics.length ? Math.round(a.topics.filter(t=>t.studied).length/a.topics.length*100) : 0;
+    const pB = b.topics.length ? Math.round(b.topics.filter(t=>t.studied).length/b.topics.length*100) : 0;
+    const sA = (a.finalWeight / Math.max(dA,1)) * (1 + (100-pA)/100);
+    const sB = (b.finalWeight / Math.max(dB,1)) * (1 + (100-pB)/100);
+    return sB - sA;
+  });
+
+  // Study day plan — simple heuristic: allocate more days to higher-priority courses
+  const firstFinal = daysUntil(ranked.reduce((a, c) => daysUntil(c.finalDate) < daysUntil(a.finalDate) ? c : a, courses[0]).finalDate);
+
+
+  // Grade needed on final — uses per-course override if set, else profile's overall goal
+  const profileTarget = parseGoalPct(profile?.gradeGoal);
+  const gradeNeeded = (c) => calcGradeNeeded(c, c.courseGoal ?? profileTarget);
+  const goalLabel = (c) => {
+    const tgt = c.courseGoal ?? profileTarget;
+    const opt = GRADE_GOAL_OPTIONS.find(o => o.pct === tgt);
+    return opt ? opt.label.split(' ')[0] : tgt + '%';
+  };
+
+  const COURSE_EMOJIS_D = ['📚','⚖️','💻','📊','🔬','🎨','📝','🌍','🧮','💡'];
+  const COURSE_COLORS_D = ['from-indigo-500 to-indigo-600','from-red-500 to-red-600','from-emerald-500 to-emerald-600','from-purple-500 to-purple-600'];
+
+  // ── Today's study plan + state detection ──────────────────────────────────
+  const toDateStrD = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const todayStrD = toDateStrD(TODAY);
+  const studyPlan = buildStudySchedule(courses, sgLecturesByC, profile);
+  const todaySessions = studyPlan.filter(r => r.date === todayStrD);
+  const courseHasGuide = (c) => (sgLecturesByC[c.id] || []).some(l => l.status === 'ready');
+  const anyHasGuide = courses.some(c => courseHasGuide(c));
+  const hasTodaySessions = todaySessions.length > 0;
+  // Get first unmastered topic for a course (from guide if available, else course topics)
+  const getNextTask = (c) => {
+    const sgLecs = (sgLecturesByC[c.id] || []).filter(l => l.status === 'ready');
+    if (sgLecs.length > 0) {
+      for (const lec of sgLecs) {
+        const topics = lec.guide?.topics || [];
+        for (let ti = 0; ti < topics.length; ti++) {
+          if (!lec.understood?.[ti]) {
+            const t = topics[ti];
+            return typeof t === 'string' ? t : (t.name || `Topic ${ti + 1}`);
+          }
+        }
+      }
+      return 'All topics reviewed — test yourself!';
+    }
+    const unStudied = c.topics.filter(t => !t.studied);
+    return unStudied.length > 0 ? unStudied[0].name : (c.topics[0]?.name || null);
+  };
+
+  return (
+    <div className="fade-in">
+      {/* Add Course Modal */}
+      {showAddCourse && (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:24}}>
+          <div className="card p-6 fade-in" style={{maxWidth:440, width:'100%'}}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-900">Add Course to Schedule</h3>
+              <button onClick={() => setShowAddCourse(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+            </div>
+            <div className="space-y-3">
+              <input value={newCourse.name} onChange={e => setNewCourse(p=>({...p,name:e.target.value}))}
+                placeholder="Course name *" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+              <input value={newCourse.professor} onChange={e => setNewCourse(p=>({...p,professor:e.target.value}))}
+                placeholder="Professor (optional)" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <input type="date" value={newCourse.finalDate} onChange={e => setNewCourse(p=>({...p,finalDate:e.target.value}))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+                  <p className="text-xs text-gray-400 mt-0.5 pl-1">Final exam date</p>
+                </div>
+                <div>
+                  <input type="number" min="0" max="100" value={newCourse.currentGrade} onChange={e => setNewCourse(p=>({...p,currentGrade:e.target.value}))}
+                    placeholder="Current grade %" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+                </div>
+              </div>
+              <div>
+                <input type="number" min="0" max="100" value={newCourse.finalWeight} onChange={e => setNewCourse(p=>({...p,finalWeight:e.target.value}))}
+                  placeholder="Final exam weight % (e.g. 30)" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowAddCourse(false)} className="btn-secondary flex-1 text-sm">Cancel</button>
+              <button disabled={!newCourse.name.trim()} onClick={() => {
+                const idx = courses.length;
+                setCourses(prev => [...prev, {
+                  id: `user_${Date.now()}`, name: newCourse.name.trim(), code: '', professor: newCourse.professor.trim(),
+                  finalDate: newCourse.finalDate || null,
+                  currentGrade: parseInt(newCourse.currentGrade) || 80,
+                  finalWeight: parseInt(newCourse.finalWeight) || 30,
+                  emoji: COURSE_EMOJIS_D[idx % COURSE_EMOJIS_D.length],
+                  color: COURSE_COLORS_D[idx % COURSE_COLORS_D.length],
+                  officeHours:'', gradingBreakdown:[], quizDates:[], assignments:[], topics:[]
+                }]);
+                setNewCourse({ name:'', professor:'', finalDate:'', currentGrade:'', finalWeight:'' });
+                setShowAddCourse(false);
+              }} className="btn-primary flex-1 text-sm disabled:opacity-40">Add to Schedule</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Finals Command Center 🎓</h1>
+          <p className="text-gray-500 text-sm">April 21, 2026 · {profile?.university || 'University'} · {profile?.year || 'Student'} · First final in {firstFinal} days</p>
+        </div>
+        <button onClick={() => setShowAddCourse(true)} className="btn-secondary text-sm flex items-center gap-1.5">
+          + Add Course
+        </button>
+      </div>
+
+      {/* Two-column layout */}
+      <div style={{display:'grid', gridTemplateColumns:'1fr 360px', gap:20, alignItems:'start'}}>
+
+      {/* LEFT — What needs your attention today (4 states) */}
+      <div>
+        {(() => {
+          // ── Shared card renderer ───────────────────────────────────────────
+          const AttentionCard = ({ c, showScheduledBanner, timeLabel, showNextTask, showUploadCTA, isTop }) => {
+            const d = daysUntil(c.finalDate);
+            const badgeClass = d <= 7 ? 'badge-urgent' : d <= 14 ? 'badge-soon' : 'badge-ok';
+            const hasGuide = courseHasGuide(c);
+            const nextTask = getNextTask(c);
+            return (
+              <div className="card p-4" style={{border: (showScheduledBanner || isTop) ? '1.5px solid #FFBC80' : '1px solid #EDEAF4'}}>
+                {showScheduledBanner && (
+                  <div style={{fontSize:11, fontWeight:700, color:'#EB7100', marginBottom:8, display:'flex', alignItems:'center', gap:5}}>
+                    <span>📅 Scheduled Today</span>
+                    {timeLabel && <span style={{fontWeight:500, color:'#9991BF'}}>· {timeLabel}</span>}
+                  </div>
+                )}
+                {!showScheduledBanner && isTop && (
+                  <div style={{fontSize:11, fontWeight:700, color:'#B45309', marginBottom:8}}>🔥 Highest Priority</div>
+                )}
+                <div className="flex items-center gap-3 mb-2 cursor-pointer" onClick={() => onNavigate('finals', c)}>
+                  <span style={{fontSize:22}}>{c.emoji}</span>
+                  <div style={{flex:1, minWidth:0}}>
+                    <p style={{fontWeight:600, fontSize:14, color:'#302C41', margin:'0 0 4px'}}>{c.name}</p>
+                    <div style={{display:'flex', alignItems:'center', gap:6, flexWrap:'wrap'}}>
+                      <span className={badgeClass}>{d} days</span>
+                      <span style={{fontSize:11, color:'#9991BF'}}>{c.finalWeight}% of grade</span>
+                    </div>
+                  </div>
+                  <span style={{fontSize:13, color:'#D5D1E6'}}>→</span>
+                </div>
+                {showNextTask && nextTask && (
+                  <div onClick={() => onNavigate('finals', c)} style={{cursor:'pointer',
+                    background: hasGuide ? '#FFF3E8' : '#F7F6FA', borderRadius:8, padding:'7px 10px',
+                    display:'flex', alignItems:'flex-start', gap:8, marginTop:4}}>
+                    <span style={{fontSize:13}}>{hasGuide ? '📖' : '📝'}</span>
+                    <div>
+                      <p style={{fontSize:10, fontWeight:700, color:'#9991BF', margin:'0 0 1px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
+                        {hasGuide ? 'Next topic in your guide' : 'First topic to cover'}
+                      </p>
+                      <p style={{fontSize:12, fontWeight:600, color:'#302C41', margin:0}}>{nextTask}</p>
+                    </div>
+                  </div>
+                )}
+                {showUploadCTA && (
+                  <div style={{marginTop:8, display:'flex'}}>
+                    <button onClick={() => onNavigate('finals', c)}
+                      style={{padding:'5px 12px', borderRadius:6, background:'#FFF3E8',
+                        color:'#EB7100', border:'1px solid #FFBC80', fontSize:11, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap'}}>
+                      📂 Upload Study Materials →
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          };
+
+          // ── State 1: No guide, no sessions today ──────────────────────────
+          if (!anyHasGuide && !hasTodaySessions) {
+            return (
+              <div>
+                <h2 style={{fontSize:11, fontWeight:700, color:'#9991BF', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4}}>What needs your attention today</h2>
+                <p style={{fontSize:13, color:'#9991BF', marginBottom:14}}>Upload study materials to create your personalized study guides.</p>
+                <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                  {ranked.map((c, i) => (
+                    <AttentionCard key={c.id} c={c} isTop={i===0} showUploadCTA={true} />
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          // ── State 2: No guide, has sessions today ─────────────────────────
+          if (!anyHasGuide && hasTodaySessions) {
+            const uniqToday = [...new Map(todaySessions.map(s => [s.course.id, s])).values()];
+            return (
+              <div>
+                <h2 style={{fontSize:11, fontWeight:700, color:'#9991BF', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4}}>What needs your attention today</h2>
+                <p style={{fontSize:13, color:'#9991BF', marginBottom:14}}>You have study sessions planned — upload materials to make the most of them.</p>
+                <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                  {uniqToday.map(s => (
+                    <AttentionCard key={s.course.id} c={s.course} showScheduledBanner={true} timeLabel={s.timeLabel} showUploadCTA={true} />
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          // ── State 3: Has guide, no sessions today ─────────────────────────
+          if (anyHasGuide && !hasTodaySessions) {
+            return (
+              <div>
+                <h2 style={{fontSize:11, fontWeight:700, color:'#9991BF', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4}}>What needs your attention today</h2>
+                <p style={{fontSize:13, color:'#9991BF', marginBottom:14}}>No sessions scheduled — pick up where you left off.</p>
+                <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                  {ranked.slice(0, 3).map((c, i) => (
+                    <AttentionCard key={c.id} c={c} isTop={i===0} showNextTask={true} />
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          // ── State 4: Has guide, has sessions today ────────────────────────
+          const uniqToday4 = [...new Map(todaySessions.map(s => [s.course.id, s])).values()];
+          return (
+            <div>
+              <h2 style={{fontSize:11, fontWeight:700, color:'#9991BF', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4}}>What needs your attention today</h2>
+              <p style={{fontSize:13, color:'#9991BF', marginBottom:14}}>Here's your study plan for today.</p>
+              <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                {uniqToday4.map(s => (
+                  <AttentionCard key={s.course.id} c={s.course} showScheduledBanner={true} timeLabel={s.timeLabel} showNextTask={true} />
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* RIGHT — Monthly Calendar Widget */}
+      {(() => {
+        const hasCal = profile?.freeBlocks?.length > 0;
+        const calPlan = studyPlan; // already computed above; same data powers both panels
+
+        // ICS export
+        const toICSdt = (ds, h) => { const hh=Math.floor(h), mm=Math.round((h-hh)*60); return `${ds.replace(/-/g,'')}T${String(hh).padStart(2,'0')}${String(mm).padStart(2,'0')}00`; };
+        const exportPlanToICS = (rows) => {
+          const uid = () => Math.random().toString(36).slice(2);
+          const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Finals Coach//Study Plan//EN','CALSCALE:GREGORIAN'];
+          for (const row of rows) {
+            const sh = row.startHour ?? 9; // default 9am for date-only sessions
+            lines.push('BEGIN:VEVENT',`UID:${uid()}@campusagent`,`DTSTART:${toICSdt(row.date,sh)}`,
+              `DTEND:${toICSdt(row.date,sh+row.hours)}`,
+              `SUMMARY:📚 ${row.course.name} — Finals Prep`,
+              row.topicFocus ? `DESCRIPTION:Topics: ${row.topicFocus}` : '',
+              'END:VEVENT');
+          }
+          lines.push('END:VCALENDAR');
+          const blob = new Blob([lines.join('\r\n')],{type:'text/calendar;charset=utf-8'});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href=url; a.download='study-plan.ics'; a.click();
+          URL.revokeObjectURL(url);
+        };
+
+        // Monthly calendar helpers
+        const toDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const todayStr = toDateStr(TODAY);
+        const monthStart = new Date(TODAY.getFullYear(), TODAY.getMonth() + monthOffset, 1);
+        const daysInMonth = new Date(TODAY.getFullYear(), TODAY.getMonth() + monthOffset + 1, 0).getDate();
+        const firstDow = monthStart.getDay(); // 0 = Sunday
+        const monthLabel = monthStart.toLocaleDateString('en-US', {month:'long', year:'numeric'});
+
+        // Build grid cells (null = empty padding cell)
+        const cells = [];
+        for (let i = 0; i < firstDow; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+        while (cells.length % 7 !== 0) cells.push(null);
+
+        // Group all events by date
+        const studyByDate = {};
+        calPlan.forEach(r => { if (!studyByDate[r.date]) studyByDate[r.date]=[]; studyByDate[r.date].push(r); });
+        const icsByDate = {};
+        icsEvents.forEach(ev => { if (!icsByDate[ev.date]) icsByDate[ev.date]=[]; icsByDate[ev.date].push(ev); });
+        const manualByDate = {};
+        manualEvents.forEach(ev => { if (!manualByDate[ev.date]) manualByDate[ev.date]=[]; manualByDate[ev.date].push(ev); });
+        const finalDates = {};
+        courses.forEach(c => { if (c.finalDate) finalDates[c.finalDate] = c; });
+
+        // Helper: get all events for a date string
+        const getEventsForDate = (ds) => {
+          const evs = [];
+          (studyByDate[ds]||[]).forEach(r => {
+            const sub = [r.timeLabel, r.topicFocus].filter(Boolean).join(' · ');
+            evs.push({type:'study', label:`📚 ${r.course.name}`, sub});
+          });
+          (icsByDate[ds]||[]).forEach(ev => evs.push({type:'ics', label:ev.summary||'Event', sub:ev.time||''}));
+          (manualByDate[ds]||[]).forEach(ev => evs.push({type:'manual', label:ev.title, sub:ev.time||''}));
+          if (finalDates[ds]) evs.push({type:'exam', label:`🎓 Final: ${finalDates[ds].name}`, sub:''});
+          return evs;
+        };
+
+        // Upcoming events for next 60 days (when no date selected)
+        const upcomingGroups = [];
+        for (let i = 0; i < 60; i++) {
+          const d = new Date(TODAY); d.setDate(TODAY.getDate() + i);
+          const ds = toDateStr(d);
+          const evs = getEventsForDate(ds);
+          if (evs.length > 0) upcomingGroups.push({
+            ds, evs,
+            label: d.toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric'})
+          });
+        }
+
+        const selEvs = selectedDate ? getEventsForDate(selectedDate) : null;
+        const selLabel = selectedDate
+          ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})
+          : null;
+
+        const DOT_COLORS = {study:'#EB7100', ics:'#6366F1', manual:'#6366F1', exam:'#EF4444'};
+
+        return (
+          <div className="card p-5">
+            {/* Header */}
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14}}>
+              <h3 style={{fontWeight:700, fontSize:14, color:'#302C41', margin:0}}>📅 Study Calendar</h3>
+              <div style={{display:'flex', alignItems:'center', gap:6}}>
+                <label style={{fontSize:11, fontWeight:600, color:'#9991BF', cursor:'pointer',
+                  border:'1px solid #EDEAF4', borderRadius:8, padding:'4px 10px', whiteSpace:'nowrap'}}>
+                  ↑ Import .ics
+                  <input type="file" accept=".ics" style={{display:'none'}} onChange={handleICSImport} />
+                </label>
+                {hasCal && (
+                  <button onClick={() => exportPlanToICS(calPlan)}
+                    style={{fontSize:11, fontWeight:600, background:'#EB7100', color:'white',
+                      border:'none', borderRadius:8, padding:'4px 10px', cursor:'pointer', whiteSpace:'nowrap'}}>
+                    ↓ Export .ics
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ── Upcoming study sessions strip (next 3 days with sessions) ── */}
+            {(() => {
+              const toDateStrC = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+              const nextStrip = [];
+              for (let i = 0; i < 7 && nextStrip.length < 3; i++) {
+                const d = new Date(TODAY); d.setDate(TODAY.getDate() + i);
+                const ds = toDateStrC(d);
+                const sessions = (studyByDate[ds] || []);
+                const exam = finalDates[ds];
+                if (sessions.length > 0 || exam) nextStrip.push({ ds, sessions, exam, d });
+              }
+              if (nextStrip.length === 0) return null;
+              return (
+                <div style={{marginBottom:12, display:'flex', flexDirection:'column', gap:5}}>
+                  {nextStrip.map(({ ds, sessions, exam, d }) => {
+                    const isToday = ds === todayStr;
+                    const dayLabel = isToday ? 'Today' : d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+                    return (
+                      <div key={ds} onClick={() => setSelectedDate(selectedDate === ds ? null : ds)}
+                        style={{
+                          borderRadius:9, padding:'7px 10px', cursor:'pointer',
+                          background: isToday ? '#FFF3E8' : '#F7F6FA',
+                          border: isToday ? '1.5px solid #FFBC80' : '1px solid #EDEAF4',
+                          display:'flex', alignItems:'center', gap:8
+                        }}>
+                        <div style={{flexShrink:0, width:36, textAlign:'center'}}>
+                          <p style={{fontSize:10, fontWeight:700, color: isToday ? '#EB7100' : '#9991BF', margin:0, lineHeight:1.2}}>{dayLabel.split(' ')[0]}</p>
+                          <p style={{fontSize:13, fontWeight:800, color: isToday ? '#EB7100' : '#302C41', margin:0, lineHeight:1}}>{d.getDate()}</p>
+                        </div>
+                        <div style={{flex:1, minWidth:0}}>
+                          {sessions.slice(0,2).map((r,ri) => (
+                            <p key={ri} style={{fontSize:11, fontWeight:600, color:'#302C41', margin:0,
+                              overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                              📚 {r.topicFocus ? r.topicFocus : r.course.name}
+                              {r.timeLabel ? <span style={{color:'#9991BF', fontWeight:400}}> · {r.timeLabel}</span> : ''}
+                            </p>
+                          ))}
+                          {sessions.length > 2 && <p style={{fontSize:10, color:'#9991BF', margin:0}}>+{sessions.length-2} more</p>}
+                          {exam && <p style={{fontSize:11, fontWeight:700, color:'#EF4444', margin: sessions.length > 0 ? '2px 0 0' : 0}}>🎓 Final: {exam.name}</p>}
+                        </div>
+                        <div style={{flexShrink:0, textAlign:'right'}}>
+                          {sessions.length > 0 && (
+                            <span style={{fontSize:10, fontWeight:600, color:'#EB7100',
+                              background:'#FFF3E8', border:'1px solid #FFBC80',
+                              borderRadius:6, padding:'2px 7px'}}>
+                              {sessions.reduce((s,r)=>s+r.hours,0)}h
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* Month navigation */}
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10}}>
+              <button onClick={() => setMonthOffset(m=>m-1)}
+                style={{background:'none', border:'none', cursor:'pointer', fontSize:16, color:'#9991BF', padding:'2px 6px', lineHeight:1}}>‹</button>
+              <span style={{fontSize:13, fontWeight:700, color:'#302C41'}}>{monthLabel}</span>
+              <button onClick={() => setMonthOffset(m=>m+1)}
+                style={{background:'none', border:'none', cursor:'pointer', fontSize:16, color:'#9991BF', padding:'2px 6px', lineHeight:1}}>›</button>
+            </div>
+
+            {/* Day-of-week headers */}
+            <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:4}}>
+              {['S','M','T','W','T','F','S'].map((d,i) => (
+                <div key={i} style={{textAlign:'center', fontSize:10, fontWeight:700,
+                  color:'#9991BF', letterSpacing:'0.04em', paddingBottom:6}}>{d}</div>
+              ))}
+            </div>
+
+            {/* Month grid */}
+            <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2}}>
+              {cells.map((day, idx) => {
+                if (!day) return <div key={idx} style={{minHeight:34}} />;
+                const ds = toDateStr(new Date(monthStart.getFullYear(), monthStart.getMonth(), day));
+                const isToday = ds === todayStr;
+                const isPast = ds < todayStr;
+                const isSel = ds === selectedDate;
+                const evs = getEventsForDate(ds);
+                const hasStudy = evs.some(e=>e.type==='study');
+                const hasICS = evs.some(e=>e.type==='ics'||e.type==='manual');
+                const hasExam = evs.some(e=>e.type==='exam');
+                return (
+                  <div key={idx} onClick={() => setSelectedDate(isSel ? null : ds)}
+                    style={{
+                      borderRadius:8, minHeight:34, padding:'4px 2px', textAlign:'center',
+                      cursor: 'pointer',
+                      background: isSel ? '#302C41' : hasExam && !isToday ? '#FEF2F2' : isToday ? '#FFF3E8' : 'transparent',
+                      border: isSel ? '1.5px solid transparent' : hasExam ? '1.5px solid #FECACA' : isToday ? '1.5px solid #EB7100' : '1.5px solid transparent',
+                    }}>
+                    <p style={{
+                      fontSize:12, fontWeight: isToday || isSel ? 700 : 400, margin:0, lineHeight:'1.3',
+                      color: isSel ? 'white' : isToday ? '#EB7100' : isPast ? '#C8C8C8' : '#302C41',
+                    }}>{day}</p>
+                    {/* Event dots */}
+                    {evs.length > 0 && (
+                      <div style={{display:'flex', justifyContent:'center', gap:2, marginTop:2}}>
+                        {hasStudy && <div style={{width:4,height:4,borderRadius:'50%',background: isSel?'rgba(255,255,255,0.7)':'#EB7100'}} />}
+                        {hasICS && <div style={{width:4,height:4,borderRadius:'50%',background: isSel?'rgba(255,255,255,0.7)':'#6366F1'}} />}
+                        {hasExam && <div style={{width:4,height:4,borderRadius:'50%',background: isSel?'rgba(255,255,255,0.7)':'#EF4444'}} />}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div style={{display:'flex', alignItems:'center', gap:12, marginTop:12, paddingTop:10, borderTop:'1px solid #EDEAF4', flexWrap:'wrap'}}>
+              <div style={{display:'flex', alignItems:'center', gap:5}}>
+                <div style={{width:8,height:8,borderRadius:'50%',background:'#EB7100'}} />
+                <span style={{fontSize:10, color:'#9991BF'}}>Study sessions</span>
+              </div>
+              <div style={{display:'flex', alignItems:'center', gap:5}}>
+                <div style={{width:8,height:8,borderRadius:'50%',background:'#6366F1'}} />
+                <span style={{fontSize:10, color:'#9991BF'}}>Imported events</span>
+              </div>
+              <div style={{display:'flex', alignItems:'center', gap:5}}>
+                <div style={{width:8,height:8,borderRadius:'50%',background:'#EF4444'}} />
+                <span style={{fontSize:10, color:'#9991BF'}}>Final exams</span>
+              </div>
+            </div>
+
+            {/* Events list */}
+            <div style={{marginTop:14, borderTop:'1px solid #EDEAF4', paddingTop:12}}>
+              {selectedDate ? (
+                <div>
+                  <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8}}>
+                    <p style={{fontSize:12, fontWeight:700, color:'#302C41', margin:0}}>{selLabel}</p>
+                    <button onClick={() => setSelectedDate(null)}
+                      style={{fontSize:11, color:'#9991BF', background:'none', border:'none', cursor:'pointer', padding:0}}>✕</button>
+                  </div>
+                  {selEvs.length === 0 ? (
+                    <p style={{fontSize:12, color:'#BDBDBD', textAlign:'center', padding:'10px 0', margin:0}}>No events this day</p>
+                  ) : selEvs.map((ev,i) => (
+                    <div key={i} style={{display:'flex', alignItems:'flex-start', gap:8, padding:'6px 0',
+                      borderBottom: i < selEvs.length-1 ? '1px solid #F5F4F9' : 'none'}}>
+                      <div style={{width:8,height:8,borderRadius:'50%',flexShrink:0,marginTop:3,background:DOT_COLORS[ev.type]||'#9991BF'}} />
+                      <div style={{flex:1, minWidth:0}}>
+                        <p style={{fontSize:12, fontWeight:600, color:'#302C41', margin:0,
+                          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{ev.label}</p>
+                        {ev.sub && <p style={{fontSize:10, color:'#9991BF', margin:0}}>{ev.sub}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  <p style={{fontSize:10, fontWeight:700, color:'#9991BF', textTransform:'uppercase',
+                    letterSpacing:'0.06em', margin:'0 0 8px'}}>Upcoming</p>
+                  {upcomingGroups.length === 0 ? (
+                    <p style={{fontSize:12, color:'#BDBDBD', textAlign:'center', padding:'10px 0', margin:0}}>No upcoming events</p>
+                  ) : upcomingGroups.slice(0,6).map((grp,gi) => (
+                    <div key={gi} style={{marginBottom:10, cursor:'pointer'}} onClick={() => setSelectedDate(grp.ds)}>
+                      <p style={{fontSize:11, fontWeight:700, color:'#302C41', margin:'0 0 3px'}}>{grp.label}</p>
+                      {grp.evs.map((ev,j) => (
+                        <div key={j} style={{display:'flex', alignItems:'center', gap:6, padding:'1px 0'}}>
+                          <div style={{width:6,height:6,borderRadius:'50%',flexShrink:0,background:DOT_COLORS[ev.type]||'#9991BF'}} />
+                          <p style={{fontSize:11, color:'#555', margin:0,
+                            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                            {ev.label}{ev.sub ? ` · ${ev.sub}` : ''}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Add event inline form */}
+            {showAddEvent ? (
+              <div style={{marginTop:12, padding:'12px', borderRadius:10, background:'#F7F6FA', border:'1px solid #EDEAF4'}}>
+                <p style={{fontSize:12, fontWeight:700, color:'#302C41', margin:'0 0 8px'}}>Add Event</p>
+                <input value={newEvent.title} onChange={e=>setNewEvent(p=>({...p,title:e.target.value}))}
+                  placeholder="Event title"
+                  style={{width:'100%', padding:'6px 10px', borderRadius:8, border:'1px solid #EDEAF4',
+                    fontSize:12, marginBottom:6, boxSizing:'border-box', background:'white', outline:'none'}} />
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:8}}>
+                  <input type="date" value={newEvent.date} onChange={e=>setNewEvent(p=>({...p,date:e.target.value}))}
+                    style={{padding:'6px 8px', borderRadius:8, border:'1px solid #EDEAF4', fontSize:12, background:'white', outline:'none'}} />
+                  <input type="time" value={newEvent.time} onChange={e=>setNewEvent(p=>({...p,time:e.target.value}))}
+                    style={{padding:'6px 8px', borderRadius:8, border:'1px solid #EDEAF4', fontSize:12, background:'white', outline:'none'}} />
+                </div>
+                <div style={{display:'flex', gap:6}}>
+                  <button onClick={() => { setShowAddEvent(false); setNewEvent({title:'',date:'',time:''}); }}
+                    style={{flex:1, padding:'6px', borderRadius:8, border:'1px solid #EDEAF4', background:'white',
+                      fontSize:12, cursor:'pointer', color:'#9991BF'}}>Cancel</button>
+                  <button disabled={!newEvent.title.trim() || !newEvent.date}
+                    onClick={() => {
+                      setManualEvents(prev => [...prev, {...newEvent, id:Date.now()}]);
+                      setSelectedDate(newEvent.date);
+                      setShowAddEvent(false);
+                      setNewEvent({title:'',date:'',time:''});
+                    }}
+                    style={{flex:1, padding:'6px', borderRadius:8, background:'#EB7100', color:'white',
+                      border:'none', fontSize:12, fontWeight:600, cursor:'pointer', opacity: (!newEvent.title.trim()||!newEvent.date)?0.4:1}}>
+                    Add Event
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowAddEvent(true)}
+                style={{marginTop:12, width:'100%', padding:'7px', borderRadius:8,
+                  border:'1.5px dashed #EDEAF4', background:'transparent', fontSize:12,
+                  color:'#9991BF', cursor:'pointer', fontWeight:500}}>
+                + Add Event Manually
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
+      </div>{/* end 2-col grid */}
+    </div>
+  );
+}
+
+// ─── FINALS PREP ──────────────────────────────────────────────────────────────
+function FinalsPrep({ courses, setCourses, apiKey, focusCourse, profile, onNavigate, sgLecturesByC, setSgLecturesByC }) {
+  const [selected, setSelected] = useState(focusCourse || null);
+  const [chatOpen, setChatOpen] = useState(false);
+  // Course edit/delete
+  const [editingCourse, setEditingCourse] = useState(null); // course object being edited
+  // Syllabus upload for course detail
+  const [syllabusUploading, setSyllabusUploading] = useState(false);
+  const [syllabusStatus, setSyllabusStatus] = useState(null); // null|'success'|'error'
+  const syllabusRef = useRef(null);
+
+  useEffect(() => { if (focusCourse) setSelected(focusCourse); }, [focusCourse]);
+
+  const handleSyllabusUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selected) return;
+    setSyllabusUploading(true); setSyllabusStatus(null);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const isText = file.type === 'text/plain', isImage = file.type.startsWith('image/');
+        const base64 = isText ? null : ev.target.result.split(',')[1];
+        let content;
+        if (isText) content = ev.target.result;
+        else if (isImage) content = [{ type:'image', source:{ type:'base64', media_type:file.type, data:base64 } }, { type:'text', text:'Extract course schedule information from this syllabus image.' }];
+        else content = [{ type:'document', source:{ type:'base64', media_type:'application/pdf', data:base64 } }, { type:'text', text:'Extract course schedule information from this syllabus PDF.' }];
+        const sys = `Extract structured information from a university course syllabus. Return ONLY valid JSON:
+{"courseName":"","professor":"","finalDate":"YYYY-MM-DD or empty","finalWeight":25,"officeHours":"","gradingBreakdown":[{"component":"","weight":""}],"topics":["topic 1","topic 2"]}
+Rules: finalDate is end-of-semester final only; topics are 5-15 main modules; default year 2026 if ambiguous.`;
+        const msgs = [{ role:'user', content: isText ? `${content}\n\nExtract course info and return JSON.` : [...(Array.isArray(content)?content.slice(0,-1):content), { type:'text', text:'Extract course info and return JSON.' }] }];
+        const reply = await callClaude(apiKey, sys, msgs);
+        const data = JSON.parse(reply.replace(/```json\n?|\n?```/g,'').replace(/```\n?/g,'').trim());
+        const courseId = selected.id;
+        setCourses(prev => prev.map(c => {
+          if (c.id !== courseId) return c;
+          return {
+            ...c,
+            professor: data.professor?.trim() || c.professor,
+            finalDate: data.finalDate || c.finalDate || '',
+            finalWeight: data.finalWeight != null ? data.finalWeight : c.finalWeight,
+            officeHours: data.officeHours || c.officeHours || '',
+            gradingBreakdown: data.gradingBreakdown?.length ? data.gradingBreakdown : (c.gradingBreakdown || []),
+            topics: data.topics?.length ? data.topics.map((t,j) => ({ id:j+1, name:t, studied:false, mastery:0 })) : c.topics,
+          };
+        }));
+        setSyllabusStatus('success');
+      } catch(_) { setSyllabusStatus('error'); }
+      setSyllabusUploading(false);
+      if (syllabusRef.current) syllabusRef.current.value = '';
+    };
+    if (file.type === 'text/plain') reader.readAsText(file);
+    else reader.readAsDataURL(file);
+  };
+
+  if (!selected) {
+    const ranked = [...courses].sort((a,b) => priorityScore(b) - priorityScore(a));
+
+    // ── Study plan state detection for FinalsPrep list ─────────────────────
+    const fpTodayStr = `${TODAY.getFullYear()}-${String(TODAY.getMonth()+1).padStart(2,'0')}-${String(TODAY.getDate()).padStart(2,'0')}`;
+    const fpStudyPlan = buildStudySchedule(courses, sgLecturesByC, profile);
+    const fpTodaySessions = fpStudyPlan.filter(r => r.date === fpTodayStr);
+    const fpCourseHasGuide = (c) => (sgLecturesByC[c.id] || []).some(l => l.status === 'ready');
+    const fpAnyHasGuide = courses.some(c => fpCourseHasGuide(c));
+    const fpHasTodaySessions = fpTodaySessions.length > 0;
+    const fpCourseSessions = (c) => fpTodaySessions.filter(s => s.course.id === c.id);
+    const fpGetNextTask = (c) => {
+      const sgLecs = (sgLecturesByC[c.id] || []).filter(l => l.status === 'ready');
+      if (sgLecs.length > 0) {
+        for (const lec of sgLecs) {
+          const topics = lec.guide?.topics || [];
+          for (let ti = 0; ti < topics.length; ti++) {
+            if (!lec.understood?.[ti]) {
+              const t = topics[ti];
+              return typeof t === 'string' ? t : (t.name || `Topic ${ti + 1}`);
+            }
+          }
+        }
+        return 'All topics reviewed — test yourself!';
+      }
+      const unStudied = c.topics.filter(t => !t.studied);
+      return unStudied.length > 0 ? unStudied[0].name : null;
+    };
+
+    // Subtitle changes per state
+    const fpSubtitle = (!fpAnyHasGuide && !fpHasTodaySessions)
+      ? 'Upload study materials to create your personalized study guides — sorted by priority'
+      : (!fpAnyHasGuide && fpHasTodaySessions)
+      ? 'Upload study materials to prep for today\'s scheduled sessions'
+      : (fpAnyHasGuide && !fpHasTodaySessions)
+      ? 'Keep the momentum going — pick up where you left off'
+      : 'Your study plan for today and progress across all finals';
+
+    return (
+      <div className="fade-in space-y-4">
+        {/* Edit Course Modal */}
+        {editingCourse && (
+          <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:24}}>
+            <div className="card p-6 fade-in" style={{maxWidth:460, width:'100%', maxHeight:'80vh', overflowY:'auto'}}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-gray-900">Edit Course</h3>
+                <button onClick={() => setEditingCourse(null)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">Course Name</label>
+                  <input value={editingCourse.name} onChange={e => setEditingCourse(p=>({...p,name:e.target.value}))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">Professor</label>
+                  <input value={editingCourse.professor||''} onChange={e => setEditingCourse(p=>({...p,professor:e.target.value}))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Final Exam Date</label>
+                    <input type="date" value={editingCourse.finalDate||''} onChange={e => setEditingCourse(p=>({...p,finalDate:e.target.value}))}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Current Grade %</label>
+                    <input type="number" min="0" max="100" value={editingCourse.currentGrade||''} onChange={e => setEditingCourse(p=>({...p,currentGrade:parseInt(e.target.value)||0}))}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-600 block mb-1">Final Exam Weight %</label>
+                  <input type="number" min="0" max="100" value={editingCourse.finalWeight||''} onChange={e => setEditingCourse(p=>({...p,finalWeight:parseInt(e.target.value)||0}))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-5">
+                <button onClick={() => setEditingCourse(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
+                <button onClick={() => {
+                  setCourses(prev => prev.map(c => c.id === editingCourse.id ? { ...c, ...editingCourse } : c));
+                  setEditingCourse(null);
+                }} className="btn-primary flex-1 text-sm">Save Changes</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Finals Prep</h1>
+            <p className="text-gray-500 text-sm">{fpSubtitle}</p>
+          </div>
+          <button onClick={() => {
+            const newCourse = {
+              id: `user_${Date.now()}`, name: 'New Course', code: '', professor: '',
+              finalDate: null, currentGrade: 80, finalWeight: 30,
+              emoji: '📚', color: 'from-indigo-500 to-indigo-600',
+              officeHours: '', gradingBreakdown: [], quizDates: [], assignments: [], topics: []
+            };
+            setCourses(prev => [...prev, newCourse]);
+            setEditingCourse(newCourse);
+          }} className="btn-secondary text-sm flex items-center gap-1.5">
+            + Add Course
+          </button>
+        </div>
+        {ranked.map((c, rank) => {
+          const d = daysUntil(c.finalDate);
+          const studied = c.topics.filter(t=>t.studied).length;
+          const pct = c.topics.length ? Math.round(studied / c.topics.length * 100) : 0;
+          const topicsLeft = c.topics.length - studied;
+          const badgeClass = d<=7 ? 'badge-urgent' : d<=14 ? 'badge-soon' : 'badge-ok';
+          const profileTgt = parseGoalPct(profile?.gradeGoal);
+          const courseTgt = c.courseGoal ?? profileTgt;
+          const need = calcGradeNeeded(c, courseTgt);
+          const goalLbl = (GRADE_GOAL_OPTIONS.find(o => o.pct === courseTgt)?.label.split(' ')[0]) || (courseTgt + '%');
+          const hasOverride = c.courseGoal != null && c.courseGoal !== profileTgt;
+          // State-aware helpers for this card
+          const sessionsToday = fpCourseSessions(c);
+          const isScheduledToday = sessionsToday.length > 0;
+          const hasGuide = fpCourseHasGuide(c);
+          const nextTask = fpGetNextTask(c);
+          const isTopPriority = rank === 0;
+          return (
+            <div key={c.id}
+              className="card p-5 transition-all"
+              style={{border: isScheduledToday ? '1.5px solid #FFBC80' : isTopPriority && !fpHasTodaySessions ? '1.5px solid #FED7AA' : '1px solid #EDEAF4'}}>
+              {/* Banner row: Scheduled Today > Highest Priority (when no sessions) */}
+              {isScheduledToday ? (
+                <div style={{display:'flex', alignItems:'center', gap:6, marginBottom:8}}>
+                  <span style={{fontSize:11, fontWeight:700, color:'#EB7100'}}>📅 Scheduled Today</span>
+                  {sessionsToday[0]?.timeLabel && <span style={{fontSize:11, color:'#9991BF', fontWeight:500}}>· {sessionsToday[0].timeLabel}</span>}
+                </div>
+              ) : isTopPriority && (
+                <div className="text-xs font-bold text-amber-700 mb-2">🔥 Highest Priority — Study This First</div>
+              )}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3 cursor-pointer flex-1" onClick={() => setSelected(c)}>
+                  <span className="text-3xl">{c.emoji}</span>
+                  <div>
+                    <div className="font-bold text-gray-900">{c.name}</div>
+                    <div className="text-sm text-gray-500">{c.code} · {c.professor}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="text-right mr-2">
+                    <span className={badgeClass}>{d} days</span>
+                    <div className="text-xs text-gray-500 mt-1">Final: {c.finalDate ? new Date(c.finalDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : 'TBD'}</div>
+                  </div>
+                  <button onClick={e => { e.stopPropagation(); setEditingCourse({...c}); }}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-all text-sm" title="Edit course">✏️</button>
+                  <button onClick={e => { e.stopPropagation(); if (window.confirm(`Remove ${c.name}?`)) { setCourses(prev => prev.filter(x => x.id !== c.id)); if (selected?.id === c.id) setSelected(null); } }}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all text-sm" title="Delete course">🗑️</button>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 mb-2 cursor-pointer" onClick={() => setSelected(c)}>
+                <div className="progress-bar h-2 flex-1">
+                  <div className="progress-fill" style={{ width: `${pct}%`, background: pct>60?'#10b981':pct>30?'#f59e0b':'#ef4444' }}></div>
+                </div>
+                <span className="text-xs font-bold text-gray-600">{studied}/{c.topics.length} topics</span>
+              </div>
+              <div className="flex gap-3 flex-wrap cursor-pointer" onClick={() => setSelected(c)}>
+                <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">Final = {c.finalWeight}% of grade</span>
+                <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: c.currentGrade<80?'#fee2e2':'#d1fae5', color: c.currentGrade<80?'#991b1b':'#065f46' }}>
+                  Current: {c.currentGrade}%
+                </span>
+                {need > 0 && need <= 100 && (
+                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                    Need {need}% for {goalLbl}{hasOverride && ' ✏️'}
+                  </span>
+                )}
+                {need > 100 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ {goalLbl} secured!</span>}
+                {topicsLeft > 0 && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{topicsLeft} topics uncovered</span>}
+              </div>
+              {/* Next task or Upload CTA — the key state-aware row */}
+              {hasGuide && nextTask ? (
+                <div onClick={() => setSelected(c)} style={{cursor:'pointer', marginTop:10,
+                  background: isScheduledToday ? '#FFF3E8' : '#F7F6FA',
+                  borderRadius:8, padding:'8px 12px', display:'flex', alignItems:'flex-start', gap:8}}>
+                  <span style={{fontSize:14}}>📖</span>
+                  <div>
+                    <p style={{fontSize:10, fontWeight:700, color:'#9991BF', margin:'0 0 1px', textTransform:'uppercase', letterSpacing:'0.04em'}}>
+                      {isScheduledToday ? "Today's focus" : 'Next topic to study'}
+                    </p>
+                    <p style={{fontSize:13, fontWeight:600, color:'#302C41', margin:0}}>{nextTask}</p>
+                  </div>
+                </div>
+              ) : !hasGuide ? (
+                <div style={{marginTop:10, display:'flex'}}>
+                  <button onClick={() => setSelected(c)}
+                    style={{padding:'5px 12px', borderRadius:6, background:'#FFF3E8',
+                      color:'#EB7100', border:'1px solid #FFBC80', fontSize:11, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap'}}>
+                    📂 Upload Study Materials →
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const course = courses.find(c => c.id === selected.id);
+  const d = daysUntil(course.finalDate);
+  const profileTarget = parseGoalPct(profile?.gradeGoal);
+  const activeTarget = course.courseGoal ?? profileTarget;
+  const activeGoalLabel = GRADE_GOAL_OPTIONS.find(o => o.pct === activeTarget)?.label || (activeTarget + '%');
+  const gradeNeededForGoal = calcGradeNeeded(course, activeTarget);
+  const setCourseGoal = (pct) => setCourses(prev => prev.map(c => c.id === course.id ? { ...c, courseGoal: pct } : c));
+
+  // Coverage from study guide lectures
+  const sgLectures = sgLecturesByC[course.id] || [];
+  const sgTotal = sgLectures.reduce((s, l) => s + (l.guide?.topics?.length || 0), 0);
+  const sgDone  = sgLectures.reduce((s, l) => s + Object.values(l.understood || {}).filter(Boolean).length, 0);
+  const sgPct   = sgTotal > 0 ? Math.round(sgDone / sgTotal * 100) : 0;
+  const hasStudyGuide = sgLectures.some(l => l.status === 'ready');
+
+  const sysPrompt = `You are a study coach helping the student prepare for their CUMULATIVE FINAL EXAM in ${course.name} in ${d} days. Current grade: ${course.currentGrade}%. Final exam weight: ${course.finalWeight}% of total grade. Grade goal: ${activeGoalLabel} (need ${gradeNeededForGoal > 0 ? gradeNeededForGoal + '%' : 'already secured'} on final). ${hasStudyGuide ? `Study guide coverage: ${sgPct}% of ${sgTotal} topics mastered.` : ''} Topics this semester: ${course.topics.map(t=>t.name).join(', ')}. Be concise, encouraging, and strategic.`;
+
+  return (
+    <div className="fade-in">
+      <div className="flex items-center gap-3 mb-5">
+        <button onClick={() => setSelected(null)}
+          className="text-orange-600 hover:text-orange-800 font-semibold text-sm">← All Finals</button>
+        <span className="text-gray-400">/</span>
+        <span className="text-gray-700 font-semibold text-sm">{course.name}</span>
+      </div>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">{course.emoji} {course.name}</h1>
+          <div className="text-sm text-gray-500 mt-0.5">{course.code} · Final in {d} days · {course.finalDate ? new Date(course.finalDate+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'}) : 'Date TBD'} · {course.finalWeight}% of grade</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <input ref={syllabusRef} type="file" accept=".pdf,.txt,.png,.jpg,.jpeg" className="hidden" onChange={handleSyllabusUpload} />
+          {syllabusStatus === 'success' ? (
+            <span className="text-xs text-green-700 font-semibold flex items-center gap-1 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg">✅ Syllabus loaded</span>
+          ) : (
+            <button onClick={() => { setSyllabusStatus(null); syllabusRef.current?.click(); }}
+              className="btn-secondary text-xs flex items-center gap-1.5" disabled={syllabusUploading}>
+              {syllabusUploading ? <><span style={{width:12,height:12,border:'1.5px solid #D5D1E6',borderTopColor:'#EB7100',borderRadius:'50%',display:'inline-block',animation:'spin 0.7s linear infinite'}}></span>Reading…</> : <>📄 Upload Syllabus</>}
+            </button>
+          )}
+          {syllabusStatus === 'error' && <span className="text-xs text-red-500 ml-1">⚠️ Try again</span>}
+        </div>
+      </div>
+
+      {/* Grade context bar — hidden once any study material has been uploaded or is generating */}
+      {sgLectures.length === 0 && <div className="card p-4 mb-4 bg-gray-50">
+        <div className="grid grid-cols-4 gap-3 text-center">
+          <div>
+            <div className="text-lg font-bold" style={{ color: course.currentGrade<80?'#dc2626':'#059669' }}>{course.currentGrade}%</div>
+            <div className="text-xs text-gray-500">Current Grade</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-orange-700">{course.finalWeight}%</div>
+            <div className="text-xs text-gray-500">Final Weight</div>
+          </div>
+          <div>
+            <div className="flex flex-col items-center gap-1">
+              <select
+                value={activeTarget}
+                onChange={e => setCourseGoal(parseInt(e.target.value))}
+                className="text-sm font-bold text-orange-700 bg-transparent border border-orange-200 rounded-lg px-2 py-0.5 cursor-pointer focus:outline-none focus:border-orange-400 hover:border-orange-400 transition-all"
+                style={{ maxWidth: '100%' }}>
+                {GRADE_GOAL_OPTIONS.map(o => (
+                  <option key={o.pct} value={o.pct}>{o.label}</option>
+                ))}
+              </select>
+              <div className="text-xs text-gray-400 flex items-center gap-1">
+                Goal {course.courseGoal != null && course.courseGoal !== profileTarget && <span className="text-orange-500 font-bold">· custom</span>}
+                {course.courseGoal != null && course.courseGoal !== profileTarget && (
+                  <button onClick={() => setCourseGoal(null)} className="text-gray-400 hover:text-red-500 text-xs ml-1" title="Reset to profile goal">↺</button>
+                )}
+              </div>
+            </div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-orange-700">
+              {gradeNeededForGoal > 100 ? '✓' : gradeNeededForGoal <= 0 ? '✓' : gradeNeededForGoal + '%'}
+            </div>
+            <div className="text-xs text-gray-500">
+              {gradeNeededForGoal > 100 ? 'Goal secured!' : gradeNeededForGoal <= 0 ? 'Goal secured!' : 'Needed on Final'}
+            </div>
+          </div>
+        </div>
+      </div>}
+
+      {/* ── Inline Study Guide ── first-time: upload flow; returning: 2-panel study experience */}
+      <StudyGuide
+        courses={[course]}
+        initialCourseId={course.id}
+        inlineMode={true}
+        apiKey={apiKey}
+        profile={profile}
+        initialLectures={sgLecturesByC[course.id] || []}
+        onLecturesUpdate={(lecs) => setSgLecturesByC(prev => ({...prev, [course.id]: lecs}))}
+      />
+
+      <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} apiKey={apiKey}
+        systemPrompt={sysPrompt} title={`Finals Coach — ${course.name}`}
+        suggestions={[
+          `What are the highest-priority topics for the final given I have ${d} days?`,
+          `Connect the key themes across the whole semester for ${course.name}`,
+          `I currently have ${course.currentGrade}% — what do I need to focus on to get a B?`,
+          `Quiz me on ${course.topics.find(t=>!t.studied)?.name || course.topics[0].name}`,
+          `What questions are most likely to appear on a cumulative final for ${course.name}?`
+        ]} />
+    </div>
+  );
+}
+
+// ─── COURSE CARD (onboarding step 2) ─────────────────────────────────────────
+function CourseCardOnboarding({ c, idx, loaded, isUploading, sStatus, onUpdate, onRemove, onSyllabusClick, canRemove }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div style={{ borderRadius: 12, border: '1.5px solid #EDEAF4', background: '#FAFAFA', overflow: 'hidden' }}>
+      {/* Primary row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' }}>
+        <div style={{ width: 26, height: 26, borderRadius: '50%', background: loaded ? '#DCFCE7' : '#F3F4F6', color: loaded ? '#16A34A' : '#9CA3AF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+          {loaded ? '✓' : idx + 1}
+        </div>
+        <input value={c.name} onChange={e => onUpdate('name', e.target.value)} placeholder={`Course ${idx + 1} name`}
+          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 14, fontWeight: 600, color: '#1F2937', fontFamily: 'Inter, sans-serif' }} />
+        <button onClick={onSyllabusClick} disabled={isUploading}
+          style={{ fontSize: 11, fontWeight: 600, color: loaded ? '#16A34A' : '#EB7100', background: loaded ? '#F0FDF4' : '#FFF3E8', border: `1px solid ${loaded ? '#86EFAC' : '#FFBC80'}`, borderRadius: 8, padding: '4px 10px', cursor: isUploading ? 'wait' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'Inter, sans-serif' }}>
+          {isUploading ? '⏳' : loaded ? '✓ Syllabus' : '+ Syllabus'}
+        </button>
+        {canRemove && (
+          <button onClick={onRemove} style={{ color: '#D1D5DB', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 2px' }}>×</button>
+        )}
+      </div>
+
+      {/* Tags row — shown when syllabus was loaded */}
+      {loaded && (
+        <div style={{ padding: '0 14px 10px 50px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {c.finalDate && <span style={{ fontSize: 11, background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A', borderRadius: 6, padding: '2px 8px', fontWeight: 600 }}>📅 {c.finalDate}</span>}
+          {c.finalWeight && <span style={{ fontSize: 11, background: '#EEF2FF', color: '#4338CA', border: '1px solid #C7D2FE', borderRadius: 6, padding: '2px 8px', fontWeight: 600 }}>{c.finalWeight}% final</span>}
+          {c.topics && <span style={{ fontSize: 11, background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', borderRadius: 6, padding: '2px 8px', fontWeight: 600 }}>{c.topics.split(',').filter(t=>t.trim()).length} topics</span>}
+        </div>
+      )}
+
+      {/* Expand toggle — only when no syllabus loaded */}
+      {!loaded && (
+        <div style={{ borderTop: '1px solid #F3F4F6' }}>
+          <button onClick={() => setOpen(o => !o)}
+            style={{ width: '100%', padding: '7px 14px 7px 50px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Add details manually →</span>
+            <span style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block', marginRight: 4 }}>›</span>
+          </button>
+        </div>
+      )}
+
+      {/* Expanded manual fields */}
+      {open && !loaded && (
+        <div style={{ padding: '4px 14px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid #F3F4F6' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Professor</label>
+              <input value={c.professor} onChange={e => onUpdate('professor', e.target.value)} placeholder="Prof. Smith"
+                style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12, background: '#fff', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Final Date</label>
+              <input type="date" value={c.finalDate} onChange={e => onUpdate('finalDate', e.target.value)}
+                style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12, background: '#fff', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Current Grade %</label>
+              <input type="number" min="0" max="100" value={c.currentGrade} onChange={e => onUpdate('currentGrade', e.target.value)} placeholder="e.g. 82"
+                style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12, background: '#fff', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Final Weight %</label>
+              <input type="number" min="0" max="100" value={c.finalWeight} onChange={e => onUpdate('finalWeight', e.target.value)} placeholder="e.g. 30"
+                style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12, background: '#fff', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+          <div>
+            <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Topics (comma-separated)</label>
+            <input value={c.topics} onChange={e => onUpdate('topics', e.target.value)} placeholder="e.g. Photosynthesis, Cell division, DNA replication"
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12, background: '#fff', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ONBOARDING WIZARD ───────────────────────────────────────────────────────
+const COURSE_EMOJIS = ['📚','⚖️','💻','📊','🔬','🎨','📝','🌍','🧮','💡'];
+const COURSE_COLORS = ['from-indigo-500 to-indigo-600','from-red-500 to-red-600','from-emerald-500 to-emerald-600','from-purple-500 to-purple-600','from-blue-500 to-blue-600','from-orange-500 to-orange-600'];
+
+function OnboardingWizard({ onComplete, apiKey }) {
+  const [step, setStep] = useState(1);
+  const TOTAL = 3;
+  const [name, setName] = useState('');
+  const [university, setUniversity] = useState('');
+  const [year, setYear] = useState('');
+  const [major, setMajor] = useState('');
+  const [minor, setMinor] = useState('');
+  const [courses, setCourses] = useState([{ id: 1, name: '', professor: '', finalDate: '', currentGrade: '', finalWeight: '', topics: '' }]);
+  const [studyStyle, setStudyStyle] = useState([]);
+  const [studyTools, setStudyTools] = useState([]);
+  const [studyHours, setStudyHours] = useState('4-5');
+  const [gradeGoal, setGradeGoal] = useState('B (83%)');
+  const [extracting, setExtracting] = useState(false);
+  const [extractStatus, setExtractStatus] = useState(null); // null | 'success' | 'error'
+  const [extractMsg, setExtractMsg] = useState('');
+  const fileInputRef = useRef(null);
+  // Syllabus upload per course
+  const [syllabusUploading, setSyllabusUploading] = useState(null); // courseId being uploaded
+  const [syllabusStatus, setSyllabusStatus] = useState({}); // { courseId: 'success'|'error' }
+  const syllabusRef = useRef(null);
+  const [syllabusTargetId, setSyllabusTargetId] = useState(null);
+  // Calendar sync
+  const [calEvents, setCalEvents] = useState([]);
+  const [freeBlocks, setFreeBlocks] = useState([]);
+  const [calStatus, setCalStatus] = useState(null); // null | 'success' | 'error'
+  const [calParsing, setCalParsing] = useState(false);
+  const calRef = useRef(null);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setExtracting(true);
+    setExtractStatus(null);
+    setExtractMsg('');
+    try {
+      const readFile = () => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        if (file.type === 'text/plain') {
+          reader.readAsText(file);
+          reader.onload = () => resolve({ type: 'text', content: reader.result });
+        } else {
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve({ type: 'binary', content: reader.result.split(',')[1], mediaType: file.type });
+        }
+        reader.onerror = reject;
+      });
+
+      const fileData = await readFile();
+      const sys = 'You extract course information from academic documents. Return ONLY a valid JSON array, no markdown, no extra text.';
+      let messages;
+
+      if (fileData.type === 'text') {
+        messages = [{ role: 'user', content: `Extract all courses from this schedule/document. Return a JSON array: [{"name":"Course Name","professor":"Prof Name or null","examDate":"YYYY-MM-DD or null","topics":"topic1, topic2 or null"}]\n\nDocument:\n${fileData.content}` }];
+      } else if (fileData.mediaType === 'application/pdf') {
+        messages = [{ role: 'user', content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileData.content } },
+          { type: 'text', text: 'Extract all courses/classes from this document. Return ONLY a JSON array: [{"name":"Course Name","professor":"Prof Name or null","examDate":"YYYY-MM-DD or null","topics":"topic1, topic2 or null"}]. If exam dates are not found, use null.' }
+        ]}];
+      } else if (fileData.mediaType.startsWith('image/')) {
+        messages = [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: fileData.mediaType, data: fileData.content } },
+          { type: 'text', text: 'Extract all courses/classes visible in this screenshot or image. Return ONLY a JSON array: [{"name":"Course Name","professor":"Prof Name or null","examDate":"YYYY-MM-DD or null","topics":"topic1, topic2 or null"}]. If exam dates are not visible, use null.' }
+        ]}];
+      } else {
+        throw new Error('Unsupported file type. Please upload a PDF, image, or text file.');
+      }
+
+      const reply = await callClaude(apiKey, sys, messages);
+      const clean = reply.replace(/```json\n?|\n?```/g, '').replace(/```\n?|\n?```/g, '').trim();
+      const extracted = JSON.parse(clean);
+      if (!Array.isArray(extracted) || extracted.length === 0) throw new Error('No courses found in document.');
+      setCourses(extracted.map((c, i) => ({ id: i + 1, name: c.name || '', professor: c.professor || '', examDate: c.examDate || '', topics: c.topics || '' })));
+      setExtractStatus('success');
+      setExtractMsg(`✅ Found ${extracted.length} course${extracted.length > 1 ? 's' : ''}! Review and edit below.`);
+    } catch (err) {
+      setExtractStatus('error');
+      setExtractMsg(`⚠️ ${err.message || 'Could not extract courses. Try a different file or add manually.'}`);
+    }
+    setExtracting(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleSyllabusUpload = async (e, courseId) => {
+    const file = e.target.files[0];
+    if (!file || !courseId) return;
+    setSyllabusUploading(courseId);
+    setSyllabusStatus(p => ({ ...p, [courseId]: null }));
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const isText  = file.type === 'text/plain';
+        const isImage = file.type.startsWith('image/');
+        const base64  = isText ? null : ev.target.result.split(',')[1];
+        let content;
+        if (isText)       content = ev.target.result;
+        else if (isImage) content = [{ type: 'image',    source: { type: 'base64', media_type: file.type, data: base64 } },
+                                     { type: 'text',     text: 'Extract the course schedule information from this syllabus image.' }];
+        else              content = [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+                                     { type: 'text',     text: 'Extract the course schedule information from this syllabus PDF.' }];
+
+        const sys = `You are extracting structured information from a university course syllabus. Return ONLY a valid JSON object with this exact structure, no markdown, no code fences, no extra text:
+{"courseName":"full course name or empty string","professor":"professor name or empty string","finalDate":"YYYY-MM-DD — the CUMULATIVE FINAL EXAM at end of semester (NOT a midterm), or empty string","finalWeight":25,"quizDates":["YYYY-MM-DD"],"assignmentDeadlines":[{"name":"string","date":"YYYY-MM-DD"}],"gradingBreakdown":[{"component":"string","weight":"string"}],"officeHours":"office hours as a string or empty string","topics":["topic 1","topic 2"]}
+Rules:
+- finalDate must be the END-OF-SEMESTER final exam only, not a midterm or quiz
+- finalWeight is an integer: the percentage the final exam contributes to the total course grade (e.g. 25 for 25%)
+- topics should be the main course modules or chapters (5–15 items), not week-by-week lecture titles
+- For dates, use the year from the syllabus; default to 2026 if ambiguous
+- Return empty string for missing text fields, null for missing numbers, empty array for missing arrays`;
+        const msgs = [{ role: 'user', content: isText
+          ? `${content}\n\nExtract the course information from this syllabus and return the JSON object.`
+          : [...content.slice(0, -1), { type: 'text', text: 'Extract the course information from this syllabus and return the JSON object.' }] }];
+        const reply = await callClaude(apiKey, sys, msgs);
+        const clean = reply.replace(/```json\n?|\n?```/g, '').replace(/```\n?/g, '').trim();
+        const data  = JSON.parse(clean);
+        // Merge extracted data back into the course — only overwrite if extracted value is non-empty
+        setCourses(prev => prev.map(c => {
+          if (c.id !== courseId) return c;
+          return {
+            ...c,
+            name:             data.courseName?.trim()   || c.name,
+            professor:        data.professor?.trim()    || c.professor,
+            finalDate:        data.finalDate            || c.finalDate   || '',
+            finalWeight:      data.finalWeight != null  ? String(data.finalWeight) : c.finalWeight,
+            quizDates:        data.quizDates?.length    ? data.quizDates   : (c.quizDates   || []),
+            assignments:      data.assignmentDeadlines?.length ? data.assignmentDeadlines : (c.assignments || []),
+            gradingBreakdown: data.gradingBreakdown?.length    ? data.gradingBreakdown    : (c.gradingBreakdown || []),
+            officeHours:      data.officeHours          || c.officeHours || '',
+            topics:           data.topics?.length       ? data.topics.join(', ') : c.topics,
+          };
+        }));
+        setSyllabusStatus(p => ({ ...p, [courseId]: 'success' }));
+      } catch (err) {
+        setSyllabusStatus(p => ({ ...p, [courseId]: 'error' }));
+      }
+      setSyllabusUploading(null);
+      if (syllabusRef.current) syllabusRef.current.value = '';
+    };
+    if (file.type === 'text/plain') reader.readAsText(file);
+    else reader.readAsDataURL(file);
+  };
+
+
+  const handleCalUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setCalParsing(true);
+    setCalStatus(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const events = parseICS(ev.target.result);
+        if (events.length === 0) throw new Error('No events found');
+        const lastFinal = courses.reduce((max, c) => {
+          if (!c.finalDate) return max;
+          const d = new Date(c.finalDate + 'T12:00:00');
+          return d > max ? d : max;
+        }, new Date(TODAY));
+        const blocks = findFreeBlocks(events, TODAY, lastFinal);
+        setCalEvents(events);
+        setFreeBlocks(blocks);
+        setCalStatus('success');
+      } catch (_) {
+        setCalStatus('error');
+      }
+      setCalParsing(false);
+      if (calRef.current) calRef.current.value = '';
+    };
+    reader.readAsText(file);
+  };
+
+  const addCourse = () => setCourses(p => [...p, { id: Date.now(), name: '', professor: '', finalDate: '', currentGrade: '', finalWeight: '', topics: '' }]);
+  const removeCourse = (id) => setCourses(p => p.filter(c => c.id !== id));
+  const updateCourse = (id, field, val) => setCourses(p => p.map(c => c.id === id ? { ...c, [field]: val } : c));
+  const toggleArr = (arr, setArr, val) => setArr(p => p.includes(val) ? p.filter(x => x !== val) : [...p, val]);
+
+  const finish = () => {
+    const profile = { name: name.trim() || 'Student', university: university.trim() || 'University', year, major: major.trim(), minor: minor.trim(), studyStyle, studyTools, studyHours, gradeGoal, calendarEvents: calEvents, freeBlocks };
+    const builtCourses = courses.filter(c => c.name.trim()).map((c, i) => ({
+      id: `user_${i}`, name: c.name.trim(), code: '', professor: c.professor.trim(),
+      finalDate: c.finalDate || null,
+      currentGrade: parseInt(c.currentGrade) || 80,
+      finalWeight: parseInt(c.finalWeight) || 30,
+      officeHours: c.officeHours || '',
+      gradingBreakdown: c.gradingBreakdown || [],
+      quizDates: c.quizDates || [],
+      assignments: c.assignments || [],
+      emoji: COURSE_EMOJIS[i % COURSE_EMOJIS.length], color: COURSE_COLORS[i % COURSE_COLORS.length],
+      topics: c.topics.trim() ? c.topics.split(',').map((t, j) => ({ id: j+1, name: t.trim(), studied: false, mastery: 0 })) : [],
+    }));
+    onComplete(profile, builtCourses.length > 0 ? builtCourses : null);
+  };
+
+  const step1Valid = name.trim() && university.trim() && year && major.trim();
+  const step2Valid = courses.some(c => c.name.trim());
+  const canContinue = step === 1 ? step1Valid : step === 2 ? step2Valid : true;
+  const pct = ((step - 1) / TOTAL) * 100;
+
+  const HEADLINES = [
+    'First, a bit about you.',
+    'Which exams are you preparing for?',
+    'Almost done — how do you want to study?',
+  ];
+  const SUBTITLES = [
+    'This personalizes your dashboard and helps us tailor recommendations to your year and major.',
+    'We\'ll rank your exams by grade impact and build your study schedule around what matters most.',
+    'Two quick choices and an optional calendar sync — and your personalized study schedule is ready.',
+  ];
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e1b4b 0%, #4f46e5 50%, #7c3aed 100%)' }} className="flex items-center justify-center p-6">
+      <div className="card w-full fade-in" style={{ maxWidth: 540 }}>
+
+        {/* ── Header ── */}
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🎓</span>
+              <div>
+                <div className="font-bold text-gray-900 text-sm">Finals Coach</div>
+                <div className="text-xs text-gray-400">Set up in 3 steps · takes under 2 min</div>
+              </div>
+            </div>
+            {/* Animated dot progress */}
+            <div className="flex items-center gap-1.5">
+              {[1,2,3].map(s => (
+                <div key={s} style={{
+                  height: 7, borderRadius: 99, background: s <= step ? '#EB7100' : '#EDEAF4',
+                  width: s === step ? 20 : 7, transition: 'all 0.3s ease'
+                }} />
+              ))}
+            </div>
+          </div>
+          {/* Step headline + single subtitle */}
+          <h2 className="text-xl font-bold text-gray-900 mb-1" style={{ letterSpacing: '-0.2px' }}>{HEADLINES[step-1]}</h2>
+          <p className="text-sm text-gray-400">{SUBTITLES[step-1]}</p>
+        </div>
+
+        <div className="p-6">
+          {step === 1 && (
+            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="grid grid-cols-2 gap-3">
+                <div style={{ gridColumn: '1/-1' }}>
+                  <label className="text-xs font-bold text-gray-500 block mb-1.5 uppercase tracking-wide">First name *</label>
+                  <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Jamie"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 block mb-1.5 uppercase tracking-wide">University *</label>
+                  <input value={university} onChange={e => setUniversity(e.target.value)} placeholder="e.g. Villanova"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 block mb-1.5 uppercase tracking-wide">Year *</label>
+                  <select value={year} onChange={e => setYear(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm bg-gray-50 focus:border-orange-400">
+                    <option value="">Select</option>
+                    {['Freshman','Sophomore','Junior','Senior'].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 block mb-1.5 uppercase tracking-wide">Major *</label>
+                  <input value={major} onChange={e => setMajor(e.target.value)} placeholder="e.g. MIS"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+                </div>
+                <div style={{ gridColumn: '1/-1' }}>
+                  <label className="text-xs font-bold text-gray-500 block mb-1.5 uppercase tracking-wide">Minor <span className="font-normal normal-case text-gray-300">optional</span></label>
+                  <input value={minor} onChange={e => setMinor(e.target.value)} placeholder="e.g. Spanish"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+              {/* ── Bulk upload zone ── */}
+              <div
+                onClick={() => !extracting && fileInputRef.current && fileInputRef.current.click()}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => { e.preventDefault(); if (!extracting && e.dataTransfer.files[0]) { const dt = { target: { files: e.dataTransfer.files } }; handleFileUpload(dt); } }}
+                style={{
+                  borderRadius: 14, border: `2px dashed ${extracting ? '#FFBC80' : '#EDEAF4'}`,
+                  background: extracting ? '#FFF3E8' : '#F7F6FA',
+                  padding: '20px 16px', textAlign: 'center', cursor: extracting ? 'wait' : 'pointer',
+                  transition: 'all 0.2s',
+                }}>
+                <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.txt" className="hidden" onChange={handleFileUpload} />
+                {extracting ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 28, height: 28, border: '3px solid #FFBC80', borderTopColor: '#EB7100', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
+                    <p className="text-sm font-semibold text-orange-700" style={{ margin: 0 }}>Reading your schedule…</p>
+                    <p className="text-xs text-orange-400" style={{ margin: 0 }}>Finals Coach is extracting your courses — just a moment</p>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 26, marginBottom: 6 }}>📄</div>
+                    <p className="text-sm font-bold text-gray-700" style={{ margin: '0 0 3px' }}>Upload your class schedule</p>
+                    <p className="text-xs text-gray-400" style={{ margin: 0 }}>PDF, screenshot, or text · Finals Coach extracts all courses automatically</p>
+                  </>
+                )}
+              </div>
+
+              {/* ── Feedback banner ── */}
+              {extractStatus === 'success' && (
+                <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span>✅</span>
+                  <div>
+                    <p className="text-sm font-semibold text-green-800" style={{ margin: 0 }}>{extractMsg}</p>
+                    <p className="text-xs text-green-600" style={{ margin: 0 }}>Upload a syllabus to each course for more detail, or edit manually.</p>
+                  </div>
+                </div>
+              )}
+              {extractStatus === 'error' && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span>⚠️</span>
+                  <div>
+                    <p className="text-sm font-semibold text-red-800" style={{ margin: 0 }}>{extractMsg}</p>
+                    <p className="text-xs text-red-500" style={{ margin: 0 }}>No worries — add your courses below.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Divider */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, height: 1, background: '#EDEAF4' }}/>
+                <span className="text-xs font-semibold text-gray-400">or enter manually</span>
+                <div style={{ flex: 1, height: 1, background: '#EDEAF4' }}/>
+              </div>
+
+              {/* ── Course cards (collapsed by default) ── */}
+              <input ref={syllabusRef} type="file" accept=".pdf,.txt,.png,.jpg,.jpeg" className="hidden"
+                onChange={e => handleSyllabusUpload(e, syllabusTargetId)} />
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto' }}>
+                {courses.map((c, i) => {
+                  const sStatus = syllabusStatus[c.id];
+                  const isUploading = syllabusUploading === c.id;
+                  const loaded = sStatus === 'success';
+                  return (
+                    <CourseCardOnboarding key={c.id} c={c} idx={i} loaded={loaded} isUploading={isUploading} sStatus={sStatus}
+                      onUpdate={(field, val) => updateCourse(c.id, field, val)}
+                      onRemove={() => removeCourse(c.id)}
+                      onSyllabusClick={() => { setSyllabusTargetId(c.id); setTimeout(() => syllabusRef.current?.click(), 50); }}
+                      canRemove={courses.length > 1} />
+                  );
+                })}
+              </div>
+
+              {courses.length < 7 && (
+                <button onClick={addCourse}
+                  style={{ width: '100%', padding: '9px', borderRadius: 10, border: '1.5px dashed #EDEAF4', background: 'transparent', fontSize: 12, color: '#9991BF', cursor: 'pointer', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
+                  + Add another course
+                </button>
+              )}
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="fade-in space-y-5">
+              {/* Study hours */}
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-2">How many hours per day do you plan to study during finals?</label>
+                <div className="flex flex-wrap gap-2">
+                  {[['1-2','1–2 hrs'],['2-3','2–3 hrs'],['3-5','3–5 hrs'],['4-5','4–5 hrs'],['5+','5+ hrs']].map(([val, label]) => (
+                    <button key={val} onClick={() => setStudyHours(val)}
+                      className={`px-4 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${studyHours === val ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-600 hover:border-orange-300'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Grade goal */}
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-2">What's your grade goal this semester?</label>
+                <div className="flex flex-wrap gap-2">
+                  {[['A (93%)','A (93%+)'],['A- (90%)','A– (90%+)'],['B+ (87%)','B+ (87%+)'],['B (83%)','B (83%+)'],['B- (80%)','B– (80%+)'],['C (73%)','C (73%+)']].map(([val, label]) => (
+                    <button key={val} onClick={() => setGradeGoal(val)}
+                      className={`px-4 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${gradeGoal === val ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-600 hover:border-orange-300'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Google Calendar sync */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block">Sync your Google Calendar</label>
+                    <p className="text-xs text-gray-400 mt-0.5">We'll find your free time slots and build your study schedule around them.</p>
+                  </div>
+                  {calStatus === 'success' && <span className="text-xs text-green-700 font-semibold bg-green-50 border border-green-200 px-3 py-1 rounded-full">✅ {calEvents.length} events loaded</span>}
+                </div>
+                <input ref={calRef} type="file" accept=".ics" className="hidden" onChange={handleCalUpload} />
+                {calStatus !== 'success' ? (
+                  <div>
+                    <button onClick={() => calRef.current?.click()} disabled={calParsing}
+                      className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 hover:border-orange-400 hover:text-orange-600 transition-all font-medium flex items-center justify-center gap-2 disabled:opacity-50">
+                      {calParsing ? '⏳ Importing your calendar…' : '📅 Upload .ics file from Google Calendar'}
+                    </button>
+                    {calStatus === 'error' && <p className="text-xs text-red-500 mt-1.5">Could not read file — make sure it's a valid .ics export.</p>}
+                    <p className="text-xs text-gray-400 mt-2">In Google Calendar: Settings → Import &amp; Export → Export → upload the .ics file.</p>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-green-800">
+                        📅 {Math.round(freeBlocks.reduce((s, b) => s + b.hours, 0))}h of free study time found across {freeBlocks.length} blocks
+                      </span>
+                      <button onClick={() => { setCalEvents([]); setFreeBlocks([]); setCalStatus(null); }}
+                        className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
+                    </div>
+                    <div className="space-y-1 max-h-28 overflow-y-auto">
+                      {freeBlocks.slice(0, 6).map((b, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs text-green-700">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0"></span>
+                          <span>{new Date(b.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {fmtHour(b.startHour)}–{fmtHour(b.endHour)} <span className="text-green-500">({b.hours}h)</span></span>
+                        </div>
+                      ))}
+                      {freeBlocks.length > 6 && <div className="text-xs text-green-600 pl-3">+{freeBlocks.length - 6} more blocks in your finals period</div>}
+                    </div>
+                    <div className="text-xs text-green-600">Your study schedule will be built around these real gaps in your calendar.</div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <span className="text-xl">🎓</span>
+                  <div>
+                    <div className="text-sm font-bold text-amber-800">Your personalized study plan is ready to build</div>
+                    <div className="text-xs text-amber-700 mt-0.5">We'll prioritize exams by grade impact, schedule study sessions around your free time, and tie your plan directly to your study guides.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 pb-6 flex items-center justify-between border-t border-gray-100 pt-4">
+          {step > 1 ? <button onClick={() => setStep(s => s-1)} className="btn-secondary text-sm px-5">← Back</button> : <div/>}
+          {step < TOTAL ? (
+            <button onClick={() => setStep(s => s+1)} disabled={!canContinue}
+              className="btn-primary text-sm px-6 disabled:opacity-40">Continue →</button>
+          ) : (
+            <button onClick={finish} className="btn-primary text-sm px-6">Launch Finals Coach 🚀</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── STUDY GUIDE (v2) ─────────────────────────────────────────────────────────
+
+const SG_ICONS = { pdf: '📄', image: '🖼️', text: '📝', audio: '🎙️' };
+
+const sgReadFiles = (fileList) => Promise.all(Array.from(fileList).map(f => new Promise(res => {
+  const isAudio = /\.(mp3|wav|m4a|ogg|aac)$/i.test(f.name) || f.type.startsWith('audio/');
+  if (isAudio) { res({ id: Math.random().toString(36).slice(2,8), name: f.name, type: 'audio', content: null, mediaType: null }); return; }
+  const r = new FileReader();
+  const isPDF = f.type === 'application/pdf', isImg = f.type.startsWith('image/');
+  if (isPDF || isImg) {
+    r.onload = e => res({ id: Math.random().toString(36).slice(2,8), name: f.name, type: isPDF?'pdf':'image', content: e.target.result.split(',')[1], mediaType: f.type });
+    r.readAsDataURL(f);
+  } else {
+    r.onload = e => res({ id: Math.random().toString(36).slice(2,8), name: f.name, type: 'text', content: e.target.result, mediaType: null });
+    r.readAsText(f);
+  }
+})));
+
+// ─── SHARED UI PRIMITIVES ────────────────────────────────────────────────────
+const Spinner = ({ size = 18, stroke = '2.5px', soft = '#FFBC80' }) => (
+  <div style={{ width: size, height: size, border: `${stroke} solid ${soft}`, borderTopColor: '#EB7100', borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+);
+
+// ─── QUIZ UI (shared by StudyGuide) ──────────────────────────────────────────
+function QuizUI({ quiz, answers, submitted, onAnswer, onSubmit, onReset }) {
+  const score = submitted ? answers.filter((a, i) => a === quiz.questions[i].answer).length : 0;
+  const pct   = quiz.questions.length ? Math.round(score / quiz.questions.length * 100) : 0;
+  return (
+    <div className="space-y-4">
+      {submitted && (
+        <div className={`rounded-xl px-4 py-3 flex items-center justify-between ${pct >= 70 ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
+          <div>
+            <p className={`font-bold text-lg ${pct >= 70 ? 'text-green-800' : 'text-amber-800'}`}>Score: {score}/{quiz.questions.length} ({pct}%)</p>
+            <p className={`text-xs mt-0.5 ${pct >= 70 ? 'text-green-600' : 'text-amber-600'}`}>{pct >= 80 ? '🎉 Great job!' : pct >= 60 ? '📚 Keep reviewing!' : '🔄 Review key concepts and try again'}</p>
+          </div>
+          <button onClick={onReset} className="btn-secondary text-xs py-1.5 px-3">Try Again</button>
+        </div>
+      )}
+      {quiz.questions.map((q, qi) => {
+        const ans = answers[qi];
+        let rowCls = 'border-gray-200 bg-white';
+        if (submitted) rowCls = ans === q.answer ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50';
+        return (
+          <div key={qi} className={`rounded-xl border-2 p-4 ${rowCls}`}>
+            <p className="text-sm font-semibold text-gray-800 mb-2">
+              <span className="text-orange-500 font-bold mr-1">Q{qi + 1}.</span>{q.q}
+            </p>
+            <div className="space-y-1.5">
+              {q.options.map((opt, oi) => {
+                let cls = 'border-gray-200 bg-white text-gray-700 hover:border-orange-300 hover:bg-orange-50';
+                if (submitted) {
+                  if (oi === q.answer) cls = 'border-green-400 bg-green-100 text-green-800 font-semibold';
+                  else if (oi === ans)  cls = 'border-red-400 bg-red-100 text-red-700';
+                  else                  cls = 'border-gray-100 bg-gray-50 text-gray-400';
+                } else if (ans === oi)  cls = 'border-orange-500 bg-orange-50 text-orange-700 font-semibold';
+                return (
+                  <button key={oi} onClick={() => !submitted && onAnswer(qi, oi)}
+                    className={`w-full text-left px-3 py-2 rounded-lg border-2 text-sm transition-all ${cls} ${submitted ? 'cursor-default' : 'cursor-pointer'}`}>
+                    <span className="font-mono text-xs mr-2 opacity-60">{String.fromCharCode(65 + oi)}.</span>{opt}
+                  </button>
+                );
+              })}
+            </div>
+            {submitted && (
+              <div className="mt-2 flex gap-2 items-start pt-2 border-t border-gray-200">
+                <span className="flex-shrink-0">{ans === q.answer ? '✅' : '❌'}</span>
+                <p className="text-xs text-gray-600">{q.explanation}</p>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {!submitted && (
+        <button onClick={onSubmit} disabled={answers.some(a => a === null)} className="btn-primary w-full disabled:opacity-40">
+          Submit Quiz ({answers.filter(a => a !== null).length}/{quiz.questions.length} answered)
+        </button>
+      )}
+    </div>
+  );
+}
+
+function StudyGuide({ courses, apiKey, initialCourseId, inlineMode, onLecturesUpdate, initialLectures, profile }) {
+  const [courseId, setCourseId] = useState(initialCourseId || courses[0]?.id || null);
+  // Restore to study phase if persisted lectures exist for this course
+  const _hasPersistedLectures = initialLectures?.some(l => l.status === 'ready' || l.status === 'processing');
+  const [phase, setPhase] = useState(_hasPersistedLectures ? 'study' : 'upload');
+  const [files, setFiles] = useState([]);
+  const [dragging, setDragging] = useState(false);
+  const [grouping, setGrouping] = useState(false);
+  const [groups, setGroups] = useState([]);
+  const [lectures, setLectures] = useState(_hasPersistedLectures ? (initialLectures || []) : []);
+  const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState(0);
+  const [selLecId, setSelLecId] = useState('__all__');
+  const [mode, setMode] = useState('summary');
+  const [deck, setDeck] = useState([]);
+  const [cardIdx, setCardIdx] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [gotIt, setGotIt] = useState(new Set());
+  const [reviewAgain, setReviewAgain] = useState(new Set());
+  const [deckDone, setDeckDone] = useState(false);
+  const [courseQuiz, setCourseQuiz] = useState(null);
+  const [courseQuizAnswers, setCourseQuizAnswers] = useState([]);
+  const [courseQuizSubmitted, setCourseQuizSubmitted] = useState(false);
+  const [courseQuizLoading, setCourseQuizLoading] = useState(false);
+  const [addingMore, setAddingMore] = useState(false); // true = "upload new source" flow, keep existing lectures
+  const fileRef = useRef(null);
+  const addMoreSourcesRef = useRef(null);
+
+  const parseJSON = t => JSON.parse(t.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim());
+
+  const buildContent = (fls, title) => {
+    const parts = [{ type: 'text', text: `Study materials for: ${title}` }];
+    fls.forEach(f => {
+      if (f.type === 'audio') {
+        parts.push({ type: 'text', text: `[Audio recording: ${f.name} — transcription not available, use context from other materials]` });
+      } else if (f.type === 'text') {
+        parts.push({ type: 'text', text: `\n--- ${f.name} ---\n${f.content}` });
+      } else if (f.type === 'pdf') {
+        parts.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.content } });
+      } else {
+        // image
+        parts.push({ type: 'image', source: { type: 'base64', media_type: f.mediaType, data: f.content } });
+      }
+    });
+    return parts;
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault(); setDragging(false);
+    const newFs = await sgReadFiles(e.dataTransfer.files);
+    setFiles(prev => { const names = new Set(prev.map(f => f.name)); return [...prev, ...newFs.filter(f => !names.has(f.name))]; });
+  };
+
+  const handleFileInput = async (e) => {
+    const newFs = await sgReadFiles(e.target.files);
+    setFiles(prev => { const names = new Set(prev.map(f => f.name)); return [...prev, ...newFs.filter(f => !names.has(f.name))]; });
+    e.target.value = '';
+  };
+
+  const autoGroup = async () => {
+    if (!files.length) return;
+    setGrouping(true);
+    try {
+      const list = files.map((f, i) => `${i}: ${f.name}`).join('\n');
+      const sys = `Group these study files by lecture. Return ONLY valid JSON:
+{"groups":[{"label":"Lecture 1: Topic Name","indices":[0,2]}]}
+Use file names to detect lecture numbers. Keep labels concise (max 40 chars). If unable to determine lecture groupings, put everything in one group.`;
+      const raw = await callAPI(apiKey, sys, [{ role: 'user', content: `Group these files by lecture:\n${list}` }], 1000);
+      const { groups: g } = parseJSON(raw);
+      const mapped = g.map((gr, i) => ({
+        id: `g${i}`, label: gr.label,
+        fileIds: gr.indices.map(idx => files[idx]?.id).filter(Boolean)
+      }));
+      const assigned = new Set(mapped.flatMap(g => g.fileIds));
+      const unassigned = files.filter(f => !assigned.has(f.id));
+      if (unassigned.length) mapped.push({ id: 'gx', label: 'Other Materials', fileIds: unassigned.map(f => f.id) });
+      setGroups(mapped);
+    } catch(e) {
+      setGroups([{ id: 'g0', label: 'All Materials', fileIds: files.map(f => f.id) }]);
+    }
+    setGrouping(false);
+    setPhase('grouping');
+  };
+
+  const generateAll = async () => {
+    setGenerating(true);
+    setGenProgress(0);
+    const lecs = groups.map(g => ({
+      id: `${g.id}_${Date.now()}`, label: g.label,
+      files: files.filter(f => g.fileIds.includes(f.id)),
+      status: 'pending', guide: null, quiz: null, quizLoading: false,
+      understood: {}, quizAnswers: [], quizSubmitted: false
+    }));
+    if (addingMore) {
+      setLectures(prev => [...prev, ...lecs]);
+    } else {
+      setLectures(lecs);
+    }
+    setAddingMore(false);
+    setPhase('study');
+    setSelLecId('__all__');
+    setMode('summary');
+
+    for (let i = 0; i < lecs.length; i++) {
+      const lec = lecs[i];
+      setLectures(prev => prev.map(l => l.id === lec.id ? { ...l, status: 'processing' } : l));
+      try {
+        const sys = `You are an expert study guide generator. Analyze ALL provided materials and return a comprehensive, exam-focused study guide.
+Return ONLY valid JSON, no markdown:
+{"title":"Specific lecture title based on content","topics":[{"name":"Topic Name","summary":"2-3 sentence overview","concepts":["specific concept or key fact","another concept","formula or definition if relevant"]}]}
+Rules: 3-6 topics, 4-6 concepts each, be specific and exam-focused.`;
+        const raw = await callAPI(apiKey, sys, [{ role: 'user', content: buildContent(lec.files, lec.label) }]);
+        const guide = parseJSON(raw);
+        setLectures(prev => prev.map(l => l.id === lec.id ? { ...l, guide, status: 'ready', label: guide.title || lec.label } : l));
+      } catch(e) {
+        setLectures(prev => prev.map(l => l.id === lec.id ? { ...l, status: 'error' } : l));
+      }
+      setGenProgress(Math.round((i + 1) / lecs.length * 100));
+    }
+    setGenerating(false);
+  };
+
+  // Rebuild flashcard deck whenever lectures change
+  useEffect(() => {
+    const readyLecs = lectures.filter(l => l.status === 'ready' && l.guide);
+    const cards = readyLecs.flatMap(lec =>
+      (lec.guide?.topics || []).map(t => ({
+        id: `${lec.id}-${t.name}`,
+        lecId: lec.id, lecLabel: lec.label,
+        topicName: t.name, summary: t.summary, concepts: t.concepts
+      }))
+    );
+    setDeck(cards);
+  }, [lectures]);
+
+  // Reset card position when lecture filter changes
+  useEffect(() => { setCardIdx(0); setFlipped(false); setDeckDone(false); }, [selLecId]);
+  // Notify parent (FinalsPrep) whenever lectures change, so coverage bar stays in sync
+  useEffect(() => { if (onLecturesUpdate) onLecturesUpdate(lectures); }, [lectures]);
+
+  const activeDeck = selLecId === '__all__' ? deck : deck.filter(c => c.lecId === selLecId);
+
+  const markCard = (wasGotIt) => {
+    const card = activeDeck[cardIdx];
+    if (!card) return;
+    if (wasGotIt) setGotIt(p => new Set([...p, card.id]));
+    else setReviewAgain(p => new Set([...p, card.id]));
+    setFlipped(false);
+    if (cardIdx + 1 < activeDeck.length) setCardIdx(p => p + 1);
+    else setDeckDone(true);
+  };
+
+  const generateQuiz = async (lecId) => {
+    const lec = lectures.find(l => l.id === lecId);
+    if (!lec?.guide) return;
+    setLectures(prev => prev.map(l => l.id === lecId ? { ...l, quizLoading: true } : l));
+    try {
+      const ctx = lec.guide.topics.map(t => `${t.name}: ${t.summary} Key points: ${t.concepts.join('; ')}`).join('\n\n');
+      const sys = `Generate a rigorous practice quiz. Return ONLY valid JSON, no markdown:
+{"questions":[{"q":"Question?","options":["A","B","C","D"],"answer":0,"explanation":"Why correct","topic":"Topic Name"}]}
+Generate 6-8 varied questions (recall, conceptual, application). answer is the 0-based index of the correct option.`;
+      const raw = await callAPI(apiKey, sys, [{ role: 'user', content: `Quiz for: ${lec.label}\n\n${ctx}` }]);
+      const quiz = parseJSON(raw);
+      setLectures(prev => prev.map(l => l.id === lecId ? { ...l, quiz, quizLoading: false, quizAnswers: new Array(quiz.questions.length).fill(null), quizSubmitted: false } : l));
+    } catch(e) {
+      setLectures(prev => prev.map(l => l.id === lecId ? { ...l, quizLoading: false } : l));
+    }
+  };
+
+  const generateCourseQuiz = async () => {
+    const readyLecs = lectures.filter(l => l.status === 'ready' && l.guide);
+    if (!readyLecs.length) return;
+    setCourseQuizLoading(true);
+    try {
+      const ctx = readyLecs.map(l =>
+        `${l.label}:\n${l.guide.topics.map(t => `${t.name}: ${t.summary} Key points: ${t.concepts.join('; ')}`).join('\n')}`
+      ).join('\n\n');
+      const sys = `Generate a comprehensive course quiz covering all lectures. Return ONLY valid JSON, no markdown:
+{"questions":[{"q":"Question?","options":["A","B","C","D"],"answer":0,"explanation":"Why correct","topic":"Topic Name"}]}
+Generate 10-12 varied questions spanning multiple lectures. answer is the 0-based index of the correct option.`;
+      const raw = await callAPI(apiKey, sys, [{ role:'user', content:`Full course quiz:\n\n${ctx}` }]);
+      const quiz = parseJSON(raw);
+      setCourseQuiz(quiz);
+      setCourseQuizAnswers(new Array(quiz.questions.length).fill(null));
+      setCourseQuizSubmitted(false);
+    } catch(e) { console.error(e); }
+    setCourseQuizLoading(false);
+  };
+
+  const regenerateLecture = async (lecId) => {
+    const lec = lectures.find(l => l.id === lecId);
+    if (!lec) return;
+    setLectures(prev => prev.map(l => l.id === lecId ? {...l, status:'processing'} : l));
+    try {
+      const sys = `You are an expert study guide generator. Analyze ALL provided materials and return a comprehensive, exam-focused study guide.
+Return ONLY valid JSON, no markdown:
+{"title":"Specific lecture title based on content","topics":[{"name":"Topic Name","summary":"2-3 sentence overview","concepts":["specific concept or key fact","another concept","formula or definition if relevant"]}]}
+Rules: 3-6 topics, 4-6 concepts each, be specific and exam-focused.`;
+      const raw = await callAPI(apiKey, sys, [{ role:'user', content: buildContent(lec.files, lec.label) }]);
+      const guide = parseJSON(raw);
+      setLectures(prev => prev.map(l => l.id === lecId ? {...l, guide, status:'ready', label: guide.title||lec.label} : l));
+    } catch(e) {
+      setLectures(prev => prev.map(l => l.id === lecId ? {...l, status:'error'} : l));
+    }
+  };
+
+  const handleAddSources = async (e) => {
+    if (!selLecId || selLecId === '__all__') return;
+    const newFs = await sgReadFiles(e.target.files);
+    setLectures(prev => prev.map(l => l.id === selLecId
+      ? { ...l, files: [...(l.files||[]), ...newFs.filter(f => !(l.files||[]).find(x=>x.name===f.name))] }
+      : l));
+    e.target.value = '';
+  };
+
+  // ── Shared header component ─────────────────────────────────────────────────
+  const CourseHeader = ({ extra }) => {
+    // In inline mode (embedded on Finals Prep page), hide the standalone Study Guide header
+    if (inlineMode) return extra
+      ? <div style={{display:'flex', justifyContent:'flex-end', marginBottom:12}}>{extra}</div>
+      : null;
+    return (
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-bold text-gray-900">📚 Study Guide</h1>
+          <select value={courseId} onChange={e => { setCourseId(e.target.value); setPhase('upload'); setFiles([]); setGroups([]); setLectures([]); setDeck([]); }}
+            className="px-3 py-1.5 rounded-xl border border-gray-200 text-sm bg-white font-medium text-gray-700 focus:border-orange-400">
+            {courses.map(c => <option key={c.id} value={c.id}>{c.code ? `${c.code} — ` : ''}{c.name}</option>)}
+          </select>
+        </div>
+        {extra}
+      </div>
+    );
+  };
+
+  // ── Phase: upload ───────────────────────────────────────────────────────────
+  if (phase === 'upload') return (
+    <div>
+      <CourseHeader />
+      <div className="card p-8">
+        <div className="text-center mb-6">
+          <h2 className="text-lg font-bold text-gray-900">{addingMore ? 'Add more sources' : 'Upload all your study materials'}</h2>
+          <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+            {addingMore
+              ? 'These new files will be grouped and added alongside your existing study guides.'
+              : 'Your study guide will be generated automatically once you upload your materials.'}
+          </p>
+          {!addingMore && (
+            <p className="text-xs mt-2 text-orange-600 font-medium">
+              💡 Use clear file names like <span className="font-semibold">Lecture3_SQL.pdf</span> or <span className="font-semibold">Week2_Notes.txt</span> — Finals Coach uses them to group and label your study guide more accurately.
+            </p>
+          )}
+        </div>
+        <div onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop} onClick={() => fileRef.current?.click()}
+          className={`flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed px-8 py-12 cursor-pointer transition-all mb-6
+            ${dragging ? 'border-orange-400 bg-orange-50' : 'border-gray-300 bg-gray-50 hover:border-orange-400 hover:bg-orange-50'}`}>
+          <input ref={fileRef} type="file" multiple accept=".pdf,.txt,.png,.jpg,.jpeg,.mp3,.wav,.m4a" className="hidden" onChange={handleFileInput} />
+          <div className="text-4xl">📂</div>
+          <div className="text-center">
+            <p className="font-semibold text-gray-700">Drop all your files here</p>
+            <p className="text-sm text-gray-400 mt-0.5">or <span className="text-orange-600 underline">browse</span></p>
+          </div>
+          <div className="flex gap-2 flex-wrap justify-center">
+            {[['📄','Lecture Slides'],['📝','Lecture Notes'],['✍️','Handwritten Notes'],['🎙️','Audio Recordings'],['📋','Practice Quizzes']].map(([icon, lbl]) => (
+              <span key={lbl} className="text-xs bg-white border border-gray-200 rounded-full px-3 py-1.5 text-gray-600 font-medium">{icon} {lbl}</span>
+            ))}
+          </div>
+        </div>
+        {files.length > 0 ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{files.length} file{files.length !== 1 ? 's' : ''} ready</p>
+              <button onClick={() => setFiles([])} className="text-xs text-red-400 hover:text-red-600">Clear all</button>
+            </div>
+            <div className="space-y-1.5 max-h-52 overflow-y-auto">
+              {files.map(f => (
+                <div key={f.id} className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2">
+                  <span>{SG_ICONS[f.type] || '📎'}</span>
+                  <p className="flex-1 text-sm text-gray-700 truncate">{f.name}</p>
+                  <button onClick={e => { e.stopPropagation(); setFiles(p => p.filter(x => x.id !== f.id)); }}
+                    className="text-gray-300 hover:text-red-400 transition-colors">✕</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={autoGroup} disabled={grouping} className="btn-primary w-full flex items-center justify-center gap-2 mt-2">
+              {grouping
+                ? <><span style={{width:16,height:16,border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'white',borderRadius:'50%',display:'inline-block',animation:'spin 0.7s linear infinite'}}></span>Grouping files…</>
+                : '✨ Generate study guide →'}
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-4">
+            {[['📄 Slides','PDF exported from Canvas, Blackboard, or email'],
+              ['📝 Notes','Typed notes, scanned PDFs, text files, handwritten scans'],
+              ['🎙️ Audio','Lecture recordings (MP3, WAV, M4A) — noted but not transcribed yet']].map(([t, d]) => (
+              <div key={t} className="text-center p-4 bg-gray-50 rounded-xl">
+                <p className="text-sm font-semibold text-gray-700">{t}</p>
+                <p className="text-xs text-gray-400 mt-1 leading-relaxed">{d}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Phase: grouping ─────────────────────────────────────────────────────────
+  if (phase === 'grouping') return (
+    <div>
+      <CourseHeader />
+      <div className="card p-6">
+        <div className="mb-5">
+          <h2 className="text-lg font-bold text-gray-900">Confirm groupings</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Finals Coach grouped your files by lecture. Rename any label or continue.</p>
+        </div>
+        <div className="space-y-3 mb-6">
+          {groups.map(g => (
+            <div key={g.id} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+              <input value={g.label}
+                onChange={e => setGroups(p => p.map(x => x.id === g.id ? { ...x, label: e.target.value } : x))}
+                className="w-full text-sm font-semibold text-gray-800 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-orange-400 focus:outline-none py-0.5 mb-2" />
+              <div className="flex flex-wrap gap-1.5">
+                {g.fileIds.map(fid => {
+                  const f = files.find(x => x.id === fid);
+                  return f ? (
+                    <span key={fid} className="text-xs bg-white border border-gray-200 rounded-full px-2 py-0.5 text-gray-600 flex items-center gap-1">
+                      {SG_ICONS[f.type] || '📎'} {f.name}
+                    </span>
+                  ) : null;
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-3">
+          <button onClick={() => setPhase('upload')} className="btn-secondary">← Back</button>
+          <button onClick={generateAll} className="btn-primary flex-1">
+            ✨ Generate study guide
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Phase: study ────────────────────────────────────────────────────────────
+  const getMastery = (lec) => {
+    if (!lec.guide?.topics?.length) return 0;
+    const done = Object.values(lec.understood || {}).filter(Boolean).length;
+    return Math.round((done / lec.guide.topics.length) * 100);
+  };
+
+  const selectedLec = selLecId !== '__all__' ? lectures.find(l => l.id === selLecId) : null;
+
+  // Concepts to review: wrong answers from submitted quizzes
+  const reviewTopics = lectures.flatMap(l => {
+    if (!l.quiz || !l.quizSubmitted) return [];
+    return l.quiz.questions
+      .filter((q, i) => l.quizAnswers[i] !== q.answer)
+      .map(q => ({ topic: q.topic || 'General', lecLabel: l.label, question: q.q, explanation: q.explanation, correctAnswer: q.options[q.answer] }));
+  });
+
+  // Mock professor-shared quizzes
+  const profQuizzes = [
+    { id:'pq1', title:'Midterm Review Quiz', date:'Apr 15', questions:10, shared:'Prof. Holt' },
+    { id:'pq2', title:'Chapter 5–7 Practice Set', date:'Apr 20', questions:8, shared:'Prof. Holt' },
+  ];
+
+  // ── Study phase computed helpers ─────────────────────────────────────────────
+  const curCourse = courses.find(c => c.id === courseId);
+  const readyLecs = lectures.filter(l => l.status === 'ready');
+  const overallMastery = readyLecs.length
+    ? Math.round(readyLecs.reduce((s, l) => s + getMastery(l), 0) / readyLecs.length)
+    : 0;
+  const completedLecs = readyLecs.filter(l => getMastery(l) >= 70);
+  const needsReviewLecs = readyLecs.filter(l => getMastery(l) > 0 && getMastery(l) < 70);
+  const notStartedLecs = readyLecs.filter(l => getMastery(l) === 0);
+  const nextLec = readyLecs.length
+    ? readyLecs.reduce((a, b) => getMastery(a) <= getMastery(b) ? a : b)
+    : null;
+  // Group non-error lectures into units of 5
+  const nonErrLecs = lectures.filter(l => l.status !== 'error');
+  const unitGroups = [];
+  for (let i = 0; i < nonErrLecs.length; i += 5) {
+    unitGroups.push({ label: `Unit ${Math.floor(i / 5) + 1}`, lecs: nonErrLecs.slice(i, i + 5) });
+  }
+
+  return (
+    <div>
+      <CourseHeader />
+
+      {/* Generation progress banner */}
+      {generating && (
+        <div className="card p-4 mb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <Spinner />
+            <p className="text-sm font-semibold text-gray-800">Building your study guides… {genProgress}%</p>
+          </div>
+          <div className="progress-bar h-1.5 mb-2">
+            <div className="progress-fill" style={{width:`${genProgress}%`,background:'#EB7100'}}></div>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+            {lectures.map(l => (
+              <span key={l.id} className="text-xs text-gray-500 flex items-center gap-1">
+                {l.status==='ready'?'✅':l.status==='error'?'❌':l.status==='processing'?<Spinner size={8} stroke="1.5px" />:'○'} {l.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Two-panel study layout */}
+      <div style={{display:'flex', minHeight:'68vh', border:'1px solid #EDEAF4', borderRadius:16, overflow:'hidden', background:'white'}}>
+
+        {/* LEFT PANEL */}
+        <div style={{width:230, flexShrink:0, borderRight:'1px solid #EDEAF4', display:'flex', flexDirection:'column', background:'white'}}>
+          {/* Study Guide heading */}
+          <div style={{padding:'14px 14px 10px', borderBottom:'1px solid #EDEAF4'}}>
+            <p style={{fontSize:13, fontWeight:700, color:'#302C41', margin:'0 0 10px', letterSpacing:'-0.1px'}}>Study Guide</p>
+            <p style={{fontSize:10, fontWeight:700, color:'#9991BF', textTransform:'uppercase', letterSpacing:'0.06em', margin:0}}>Lectures</p>
+          </div>
+          {/* Flat lecture list */}
+          <div style={{flex:1, overflowY:'auto', padding:'6px 0'}}>
+            {nonErrLecs.map((lec) => {
+              const mastery = getMastery(lec);
+              const isSelected = selLecId === lec.id;
+              const isReady = lec.status === 'ready';
+              const statusIcon = lec.status === 'processing'
+                ? null
+                : mastery >= 70 ? '✅' : mastery > 0 ? '⚠️' : '□';
+              return (
+                <div key={lec.id}
+                  onClick={() => { if (isReady) { setSelLecId(lec.id); setCardIdx(0); setFlipped(false); setDeckDone(false); } }}
+                  style={{
+                    padding:'8px 14px', cursor: isReady ? 'pointer' : 'default',
+                    display:'flex', alignItems:'center', gap:8,
+                    background: isSelected ? '#FFF3E8' : 'transparent',
+                    borderLeft: isSelected ? '3px solid #EB7100' : '3px solid transparent',
+                    opacity: lec.status === 'pending' ? 0.5 : 1,
+                    transition:'background 0.12s'
+                  }}>
+                  <span style={{fontSize:12, flexShrink:0, lineHeight:1, width:16, textAlign:'center'}}>
+                    {lec.status === 'processing' ? <Spinner size={10} stroke="1.5px" /> : statusIcon}
+                  </span>
+                  <span style={{fontSize:12, fontWeight: isSelected ? 600 : 400,
+                    color: isSelected ? '#EB7100' : '#302C41',
+                    flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                    {lec.label}
+                  </span>
+                </div>
+              );
+            })}
+            {/* Failed lectures section */}
+            {lectures.filter(l => l.status === 'error').length > 0 && (
+              <div style={{borderTop:'1px solid #EDEAF4', paddingTop:8, marginTop:4}}>
+                <p style={{fontSize:10, fontWeight:700, color:'#dc2626', textTransform:'uppercase', letterSpacing:'0.06em',
+                  padding:'4px 14px 6px', margin:0}}>Failed</p>
+                {lectures.filter(l => l.status === 'error').map(lec => (
+                  <div key={lec.id} style={{margin:'0 10px 4px', padding:'8px 10px', borderRadius:8,
+                    border:'1px solid #fee2e2', background:'#fff5f5'}}>
+                    <span style={{fontSize:11, fontWeight:500, color:'#991b1b', display:'block',
+                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginBottom:4}}>
+                      {lec.label}
+                    </span>
+                    <button onClick={() => regenerateLecture(lec.id)}
+                      style={{fontSize:10, fontWeight:600, color:'#dc2626', background:'white',
+                        border:'1px solid #fca5a5', borderRadius:6, padding:'3px 8px', cursor:'pointer', width:'100%'}}>
+                      ↺ Regenerate
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT PANEL — content */}
+        <div style={{flex:1, overflowY:'auto', padding:'28px 32px'}}>
+          {!selectedLec ? (
+            /* ── Study dashboard (post-upload overview) ── */
+            <div>
+
+              {/* ── Secondary actions: subtle, top-right only ── */}
+              <div style={{display:'flex', justifyContent:'flex-end', alignItems:'center', gap:10, marginBottom:20}}>
+                {generating && (
+                  <span style={{fontSize:12, color:'#9991BF', display:'flex', alignItems:'center', gap:5, marginRight:'auto'}}>
+                    <Spinner size={11} stroke="2px" /> Building your study guides…
+                  </span>
+                )}
+                <button style={{fontSize:12, color:'#9991BF', background:'none', border:'none',
+                  cursor:'pointer', padding:'4px 2px', fontWeight:500}}>
+                  + Add Syllabus
+                </button>
+                <span style={{color:'#EDEAF4', fontSize:14}}>|</span>
+                <button onClick={() => { setAddingMore(true); setFiles([]); setGroups([]); setPhase('upload'); }}
+                  style={{fontSize:12, fontWeight:600, color:'#302C41', background:'white',
+                    border:'1.5px solid #EDEAF4', borderRadius:8, padding:'6px 12px', cursor:'pointer'}}>
+                  + Add More Sources
+                </button>
+              </div>
+
+              {/* ── Hero: Next Step — the single primary action ── */}
+              <div style={{borderRadius:14, background:'#302C41', padding:'22px 26px', marginBottom:14,
+                display:'flex', alignItems:'center', justifyContent:'space-between', gap:20}}>
+                <div style={{minWidth:0}}>
+                  <p style={{fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.4)',
+                    textTransform:'uppercase', letterSpacing:'0.08em', margin:'0 0 8px'}}>
+                    {generating ? 'Working on it…' : 'Next step'}
+                  </p>
+                  {generating ? (
+                    <p style={{fontSize:15, fontWeight:600, color:'rgba(255,255,255,0.7)', margin:0, lineHeight:1.4}}>
+                      Building your study guides — lectures will appear as they finish.
+                    </p>
+                  ) : nextLec ? (
+                    <>
+                      <p style={{fontSize:17, fontWeight:700, color:'white', margin:'0 0 5px', lineHeight:1.3,
+                        overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:340}}>
+                        {getMastery(nextLec) === 0 ? 'Start' : 'Continue'}: {nextLec.label}
+                      </p>
+                      <p style={{fontSize:12, color:'rgba(255,255,255,0.5)', margin:0}}>
+                        {getMastery(nextLec) === 0
+                          ? 'Not started yet'
+                          : `${getMastery(nextLec)}% mastery · keep going to reach 70%`}
+                      </p>
+                    </>
+                  ) : (
+                    <p style={{fontSize:15, fontWeight:600, color:'rgba(255,255,255,0.6)', margin:0}}>
+                      No lectures ready yet.
+                    </p>
+                  )}
+                </div>
+                {!generating && nextLec && (
+                  <button onClick={() => { setSelLecId(nextLec.id); setCardIdx(0); setFlipped(false); setDeckDone(false); }}
+                    style={{flexShrink:0, background:'#EB7100', color:'white', border:'none',
+                      borderRadius:10, padding:'12px 22px', fontSize:13, fontWeight:700,
+                      cursor:'pointer', whiteSpace:'nowrap'}}>
+                    {getMastery(nextLec) === 0 ? 'Start →' : 'Resume →'}
+                  </button>
+                )}
+              </div>
+
+              {/* ── Course Readiness stat ── */}
+              <div style={{borderRadius:12, border:'1px solid #EDEAF4', padding:'14px 18px',
+                background:'white', marginBottom:14}}>
+                <p style={{fontSize:22, fontWeight:800, color:'#302C41', margin:'0 0 3px', lineHeight:1}}>
+                  {overallMastery}%
+                </p>
+                <p style={{fontSize:10, fontWeight:700, color:'#9991BF', textTransform:'uppercase',
+                  letterSpacing:'0.05em', margin:'0 0 8px'}}>Course Readiness</p>
+                <div style={{height:4, borderRadius:2, background:'#EDEAF4', overflow:'hidden'}}>
+                  <div style={{height:'100%', borderRadius:2, background:'#EB7100',
+                    width:`${overallMastery}%`, transition:'width 0.4s ease'}}></div>
+                </div>
+              </div>
+
+              {/* ── Secondary actions row ── */}
+              <div style={{display:'flex', gap:10}}>
+
+                {/* Professor Assigned */}
+                {profQuizzes.length > 0 && (
+                  <div style={{flex:1, borderRadius:12, border:'1px solid #EDEAF4',
+                    padding:'14px 18px', background:'white',
+                    display:'flex', alignItems:'center', justifyContent:'space-between', gap:12}}>
+                    <div style={{minWidth:0}}>
+                      <p style={{fontSize:10, fontWeight:700, color:'#9991BF', textTransform:'uppercase',
+                        letterSpacing:'0.06em', margin:'0 0 3px'}}>Professor Assigned</p>
+                      <p style={{fontSize:13, fontWeight:700, color:'#302C41', margin:'0 0 1px',
+                        overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                        {profQuizzes[0].title}
+                      </p>
+                      <p style={{fontSize:11, color:'#9991BF', margin:0}}>
+                        {profQuizzes[0].questions} questions · {profQuizzes[0].shared}
+                      </p>
+                    </div>
+                    <button style={{flexShrink:0, fontSize:12, fontWeight:700, color:'white',
+                      background:'#302C41', border:'none', borderRadius:8,
+                      padding:'8px 16px', cursor:'pointer'}}>
+                      Start →
+                    </button>
+                  </div>
+                )}
+
+                {/* Full Course Quiz — only when lectures are ready */}
+                {!generating && readyLecs.length >= 2 && (
+                  <div style={{flex:1, borderRadius:12, border:'1px solid #EDEAF4',
+                    padding:'14px 18px', background:'white',
+                    display:'flex', alignItems:'center', justifyContent:'space-between', gap:12}}>
+                    <div>
+                      <p style={{fontSize:10, fontWeight:700, color:'#9991BF', textTransform:'uppercase',
+                        letterSpacing:'0.06em', margin:'0 0 3px'}}>Course Quiz</p>
+                      <p style={{fontSize:13, fontWeight:700, color:'#302C41', margin:'0 0 1px'}}>
+                        Full Course Quiz
+                      </p>
+                      <p style={{fontSize:11, color:'#9991BF', margin:0}}>
+                        {readyLecs.length} lectures · all topics
+                      </p>
+                    </div>
+                    <button onClick={generateCourseQuiz} disabled={courseQuizLoading}
+                      style={{flexShrink:0, fontSize:12, fontWeight:700, color:'white',
+                        background:'#302C41', border:'none', borderRadius:8,
+                        padding:'8px 16px', cursor: courseQuizLoading ? 'default' : 'pointer',
+                        opacity: courseQuizLoading ? 0.6 : 1}}>
+                      {courseQuizLoading ? 'Generating…' : 'Take →'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Full Course Quiz panel — expands below when active */}
+              {courseQuiz && (
+                <div style={{marginTop:14, border:'1.5px solid #FFBC80', borderRadius:12,
+                  padding:'16px 20px', background:'#FFF3E8'}}>
+                  <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12}}>
+                    <p style={{fontSize:13, fontWeight:700, color:'#9a3412', margin:0}}>📝 Full Course Quiz</p>
+                    <button onClick={() => { setCourseQuiz(null); setCourseQuizAnswers([]); setCourseQuizSubmitted(false); }}
+                      style={{fontSize:12, color:'#EB7100', background:'none', border:'none', cursor:'pointer', fontWeight:600}}>
+                      Close ✕
+                    </button>
+                  </div>
+                  <QuizUI quiz={courseQuiz} answers={courseQuizAnswers} submitted={courseQuizSubmitted}
+                    onAnswer={(qi, oi) => { const a = [...courseQuizAnswers]; a[qi] = oi; setCourseQuizAnswers(a); }}
+                    onSubmit={() => setCourseQuizSubmitted(true)}
+                    onReset={() => { setCourseQuizAnswers(new Array(courseQuiz.questions.length).fill(null)); setCourseQuizSubmitted(false); }} />
+                </div>
+              )}
+
+              {/* ── Study Schedule Panel (tied to guide topics) ─────────────────── */}
+              {(() => {
+                if (!curCourse) return null;
+                const readyGuideMap = { [courseId]: lectures.filter(l => l.status === 'ready') };
+                const schedule = buildStudySchedule([curCourse], readyGuideMap, profile);
+                if (schedule.length === 0 && readyLecs.length === 0) return null;
+
+                const profileTarget = parseGoalPct(profile?.gradeGoal);
+                const activeTarget = curCourse.courseGoal ?? profileTarget;
+                const gradeGap = calcGradeNeeded(curCourse, activeTarget);
+                const daysLeft = daysUntil(curCourse.finalDate);
+                const maxHours = parseMaxHours(profile?.studyHours || '4-5');
+
+                // Group schedule rows by date, show next 14 days only
+                const toDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                const cutoff = new Date(TODAY); cutoff.setDate(TODAY.getDate() + 14);
+                const cutoffStr = toDateStr(cutoff);
+                const upcoming = schedule.filter(r => r.date >= toDateStr(TODAY) && r.date <= cutoffStr);
+
+                // Compute totals for the summary bar
+                const totalTopicsLeft = readyLecs.reduce((s, l) => {
+                  const count = (l.guide?.topics?.length || 0) - Object.values(l.understood || {}).filter(Boolean).length;
+                  return s + Math.max(0, count);
+                }, 0);
+
+                // Group upcoming sessions by date
+                const byDate = {};
+                upcoming.forEach(r => { if (!byDate[r.date]) byDate[r.date] = []; byDate[r.date].push(r); });
+
+                const fmtDate = (ds) => {
+                  const d = new Date(ds + 'T12:00:00');
+                  const isToday = ds === toDateStr(TODAY);
+                  const isTomorrow = ds === toDateStr(new Date(TODAY.getTime() + 86400000));
+                  if (isToday) return 'Today';
+                  if (isTomorrow) return 'Tomorrow';
+                  return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+                };
+
+                const URGENCY_COLOR = gradeGap > 20 ? '#D62B2B' : gradeGap > 0 ? '#EB7100' : '#1E8A4A';
+
+                return (
+                  <div style={{marginTop:16}}>
+                    {/* Section header */}
+                    <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10}}>
+                      <div style={{display:'flex', alignItems:'center', gap:8}}>
+                        <p style={{fontSize:13, fontWeight:700, color:'#302C41', margin:0}}>📅 Study Schedule</p>
+                        {readyLecs.length > 0 && (
+                          <span style={{fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99,
+                            background:'#FFF3E8', color:'#EB7100', border:'1px solid #FFBC80'}}>
+                            Tied to your guide
+                          </span>
+                        )}
+                      </div>
+                      {curCourse.finalDate && (
+                        <span style={{fontSize:11, fontWeight:700, color:'#EF4444',
+                          background:'#FEF2F2', border:'1px solid #FECACA',
+                          borderRadius:8, padding:'3px 10px'}}>
+                          🎓 Final: {new Date(curCourse.finalDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})} · {daysLeft} days
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Smart summary bar */}
+                    <div style={{borderRadius:12, background:'#F7F6FA', border:'1px solid #EDEAF4',
+                      padding:'12px 16px', marginBottom:12, display:'flex', gap:16, flexWrap:'wrap'}}>
+                      <div style={{display:'flex', flexDirection:'column', gap:2}}>
+                        <span style={{fontSize:11, fontWeight:700, color:URGENCY_COLOR}}>
+                          {gradeGap > 100 ? '⚠️ Stretch goal' : gradeGap > 0 ? `Need ${gradeGap}% on final` : '✓ Goal secured'}
+                        </span>
+                        <span style={{fontSize:10, color:'#9991BF'}}>Current {curCourse.currentGrade}% → Goal {activeTarget}%</span>
+                      </div>
+                      <div style={{width:'1px', background:'#EDEAF4', flexShrink:0}} />
+                      <div style={{display:'flex', flexDirection:'column', gap:2}}>
+                        <span style={{fontSize:11, fontWeight:700, color:'#302C41'}}>{totalTopicsLeft} topics left</span>
+                        <span style={{fontSize:10, color:'#9991BF'}}>from your study guide</span>
+                      </div>
+                      <div style={{width:'1px', background:'#EDEAF4', flexShrink:0}} />
+                      <div style={{display:'flex', flexDirection:'column', gap:2}}>
+                        <span style={{fontSize:11, fontWeight:700, color:'#302C41'}}>{maxHours}h/day</span>
+                        <span style={{fontSize:10, color:'#9991BF'}}>study target</span>
+                      </div>
+                      <div style={{width:'1px', background:'#EDEAF4', flexShrink:0}} />
+                      <div style={{display:'flex', flexDirection:'column', gap:2}}>
+                        <span style={{fontSize:11, fontWeight:700, color:'#302C41'}}>{curCourse.finalWeight}% weight</span>
+                        <span style={{fontSize:10, color:'#9991BF'}}>of final grade</span>
+                      </div>
+                    </div>
+
+                    {/* Day-by-day schedule */}
+                    {schedule.length === 0 ? (
+                      <div style={{borderRadius:12, border:'1.5px dashed #EDEAF4', padding:'24px 16px',
+                        textAlign:'center', color:'#9991BF', fontSize:12}}>
+                        {readyLecs.length === 0
+                          ? 'Generate your study guide above to get a personalized study schedule.'
+                          : 'Complete onboarding to get a day-by-day study plan tailored to your schedule.'}
+                      </div>
+                    ) : (
+                      <div style={{display:'flex', flexDirection:'column', gap:6}}>
+                        {Object.entries(byDate).slice(0, 7).map(([ds, rows]) => {
+                          const isToday = ds === toDateStr(TODAY);
+                          return (
+                            <div key={ds} style={{
+                              borderRadius:10,
+                              border: isToday ? '1.5px solid #FFBC80' : '1px solid #EDEAF4',
+                              background: isToday ? '#FFFBF5' : 'white',
+                              overflow:'hidden'
+                            }}>
+                              <div style={{
+                                padding:'7px 14px',
+                                background: isToday ? '#FFF3E8' : '#F7F6FA',
+                                borderBottom:'1px solid #EDEAF4',
+                                display:'flex', alignItems:'center', justifyContent:'space-between'
+                              }}>
+                                <span style={{fontSize:11, fontWeight:700,
+                                  color: isToday ? '#EB7100' : '#302C41'}}>
+                                  {isToday ? '📌 ' : ''}{fmtDate(ds)}
+                                </span>
+                                <span style={{fontSize:10, color:'#9991BF'}}>
+                                  {rows.reduce((s,r) => s + r.hours, 0)}h planned
+                                </span>
+                              </div>
+                              {rows.map((row, ri) => (
+                                <div key={ri} style={{
+                                  padding:'8px 14px',
+                                  display:'flex', alignItems:'center', gap:10,
+                                  borderBottom: ri < rows.length - 1 ? '1px solid #F5F4F9' : 'none'
+                                }}>
+                                  <div style={{
+                                    width:28, height:28, borderRadius:8,
+                                    background:'#FFF3E8', flexShrink:0,
+                                    display:'flex', alignItems:'center', justifyContent:'center',
+                                    fontSize:13
+                                  }}>📚</div>
+                                  <div style={{flex:1, minWidth:0}}>
+                                    <p style={{fontSize:12, fontWeight:600, color:'#302C41', margin:'0 0 1px',
+                                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                                      {row.topicFocus || row.course.name}
+                                    </p>
+                                    <p style={{fontSize:10, color:'#9991BF', margin:0}}>
+                                      {[row.timeLabel, `${row.hours}h`].filter(Boolean).join(' · ')}
+                                    </p>
+                                  </div>
+                                  {row.timeLabel && (
+                                    <span style={{fontSize:10, fontWeight:600, color:'#EB7100',
+                                      background:'#FFF3E8', border:'1px solid #FFBC80',
+                                      borderRadius:6, padding:'2px 8px', flexShrink:0, whiteSpace:'nowrap'}}>
+                                      {row.timeLabel}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+                        {Object.keys(byDate).length > 7 && (
+                          <p style={{fontSize:11, color:'#9991BF', textAlign:'center', margin:'4px 0 0', padding:'4px'}}>
+                            + {Object.keys(byDate).length - 7} more study days through your final · view full plan on the Dashboard calendar
+                          </p>
+                        )}
+                        {curCourse.finalDate && (
+                          <div style={{
+                            borderRadius:10, border:'1.5px solid #FECACA',
+                            background:'#FEF2F2', padding:'10px 14px',
+                            display:'flex', alignItems:'center', gap:10, marginTop:2
+                          }}>
+                            <span style={{fontSize:16}}>🎓</span>
+                            <div>
+                              <p style={{fontSize:12, fontWeight:700, color:'#991b1b', margin:0}}>
+                                Final Exam — {curCourse.name}
+                              </p>
+                              <p style={{fontSize:10, color:'#dc2626', margin:0}}>
+                                {new Date(curCourse.finalDate+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})} · {daysLeft} day{daysLeft !== 1 ? 's' : ''} away
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            /* Lecture detail view */
+            <div>
+              {/* Back link */}
+              <button onClick={() => setSelLecId('__all__')}
+                style={{fontSize:12, color:'#9991BF', background:'none', border:'none', cursor:'pointer', marginBottom:16, padding:0, fontWeight:500, display:'flex', alignItems:'center', gap:4}}>
+                ← All lectures
+              </button>
+
+              {/* Lecture header */}
+              <div style={{marginBottom:16}}>
+                <h2 style={{fontSize:20, fontWeight:700, color:'#302C41', marginBottom:4}}>{selectedLec.label}</h2>
+                <p style={{fontSize:13, color:'#9991BF'}}>Mastery {getMastery(selectedLec)}% · {selectedLec.guide?.topics?.length || 0} topics covered</p>
+              </div>
+
+              {/* ── Sources strip ── */}
+              <div style={{marginBottom:20, padding:'12px 14px', borderRadius:10, border:'1px solid #EDEAF4', background:'#F7F6FA'}}>
+                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: (selectedLec.files||[]).length > 0 ? 10 : 0}}>
+                  <p style={{fontSize:10, fontWeight:700, color:'#9991BF', textTransform:'uppercase', letterSpacing:'0.06em', margin:0}}>Sources</p>
+                  <label style={{fontSize:11, fontWeight:600, color:'#EB7100', cursor:'pointer', display:'flex', alignItems:'center', gap:4}}>
+                    <input ref={addMoreSourcesRef} type="file" multiple accept=".pdf,.txt,.png,.jpg,.jpeg,.mp3,.wav,.m4a"
+                      style={{display:'none'}} onChange={handleAddSources} />
+                    + Upload more
+                  </label>
+                </div>
+                {(selectedLec.files||[]).length > 0 ? (
+                  <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
+                    {(selectedLec.files||[]).map(f => (
+                      <div key={f.id} style={{display:'inline-flex', alignItems:'center', gap:6, padding:'4px 8px 4px 10px',
+                        borderRadius:20, background:'white', border:'1px solid #EDEAF4', maxWidth:220}}>
+                        <span style={{fontSize:12, flexShrink:0}}>{SG_ICONS[f.type]||'📎'}</span>
+                        <span style={{fontSize:11, color:'#302C41', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1}}>{f.name}</span>
+                        <button onClick={() => setLectures(prev => prev.map(l => l.id === selectedLec.id
+                            ? {...l, files:(l.files||[]).filter(x => x.id !== f.id)} : l))}
+                          style={{flexShrink:0, fontSize:11, color:'#9991BF', background:'none', border:'none',
+                            cursor:'pointer', padding:'0 2px', lineHeight:1, fontWeight:600}}
+                          title="Remove source">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{fontSize:12, color:'#9991BF', margin:0}}>No sources — <label style={{color:'#EB7100', cursor:'pointer', fontWeight:600}}>upload one<input ref={addMoreSourcesRef} type="file" multiple accept=".pdf,.txt,.png,.jpg,.jpeg,.mp3,.wav,.m4a" style={{display:'none'}} onChange={handleAddSources} /></label></p>
+                )}
+              </div>
+
+              {/* Underline tab bar: Key Concepts | Practice | Flashcards | Review */}
+              <div style={{display:'flex', gap:20, borderBottom:'1.5px solid #EDEAF4', marginBottom:24}}>
+                {[['summary','📖 Key Concepts'],['quiz','✏️ Practice'],['flashcard','⚡ Flashcards'],['review','🔄 Review']].map(([m, lbl]) => (
+                  <button key={m} onClick={() => setMode(m)}
+                    style={{paddingBottom:10, fontSize:13, fontWeight:600, border:'none', background:'transparent',
+                      color: mode===m?'#EB7100':'#9991BF',
+                      borderBottom: mode===m?'2px solid #EB7100':'2px solid transparent',
+                      marginBottom:-1.5, cursor:'pointer', transition:'color 0.15s', whiteSpace:'nowrap'}}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Key Concepts ── */}
+              {mode === 'summary' && selectedLec.guide && (
+                <div style={{display:'flex', flexDirection:'column', gap:12}}>
+                  {selectedLec.guide.topics.map((t, ti) => {
+                    const done = selectedLec.understood[ti];
+                    return (
+                      <div key={ti} style={{borderRadius:12, border:`1.5px solid ${done?'#bbf7d0':'#EDEAF4'}`, overflow:'hidden', transition:'border-color 0.2s'}}>
+                        <div style={{padding:'12px 16px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, background: done?'#f0fdf4':'#FFF3E8'}}>
+                          <div style={{flex:1}}>
+                            <h4 style={{fontSize:13, fontWeight:700, color: done?'#166534':'#9a3412', marginBottom:4}}>{t.name}</h4>
+                            <p style={{fontSize:12, color: done?'#16a34a':'#c2410c', lineHeight:1.5}}>{t.summary}</p>
+                          </div>
+                          <button onClick={() => setLectures(p => p.map(l => l.id===selectedLec.id ? {...l, understood:{...l.understood,[ti]:!done}} : l))}
+                            style={{flexShrink:0, fontSize:11, padding:'4px 10px', borderRadius:20, fontWeight:600, cursor:'pointer', transition:'all 0.15s',
+                              background: done?'#dcfce7':'white', color: done?'#166534':'#9991BF', border: done?'1px solid #bbf7d0':'1px solid #EDEAF4'}}>
+                            {done?'✓ Done':'Mark done'}
+                          </button>
+                        </div>
+                        <ul style={{padding:'12px 16px', margin:0, listStyle:'none', display:'flex', flexDirection:'column', gap:8}}>
+                          {t.concepts.map((c, ci) => (
+                            <li key={ci} style={{display:'flex', alignItems:'flex-start', gap:8, fontSize:13, color:'#302C41'}}>
+                              <span style={{color:'#EB7100', flexShrink:0, marginTop:2}}>▸</span>{c}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ── Practice ── */}
+              {mode === 'quiz' && (
+                <div>
+                  {!selectedLec.quiz && !selectedLec.quizLoading && (
+                    <div style={{textAlign:'center', paddingTop:48}}>
+                      <div style={{fontSize:36, marginBottom:12}}>✏️</div>
+                      <p style={{fontSize:13, color:'#9991BF', marginBottom:20}}>Test your knowledge of <strong style={{color:'#302C41'}}>{selectedLec.label}</strong></p>
+                      <button onClick={() => generateQuiz(selectedLec.id)} className="btn-primary">Generate Practice Quiz</button>
+                    </div>
+                  )}
+                  {selectedLec.quizLoading && (
+                    <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:12, paddingTop:48, fontSize:13, color:'#9991BF'}}>
+                      <Spinner size={20} /> Building your practice quiz…
+                    </div>
+                  )}
+                  {selectedLec.quiz && !selectedLec.quizLoading && (
+                    <QuizUI quiz={selectedLec.quiz} answers={selectedLec.quizAnswers} submitted={selectedLec.quizSubmitted}
+                      onAnswer={(qi, oi) => setLectures(p => p.map(l => { if (l.id!==selectedLec.id) return l; const a=[...l.quizAnswers]; a[qi]=oi; return {...l, quizAnswers:a}; }))}
+                      onSubmit={() => setLectures(p => p.map(l => l.id===selectedLec.id ? {...l, quizSubmitted:true} : l))}
+                      onReset={() => setLectures(p => p.map(l => l.id===selectedLec.id ? {...l, quizAnswers:new Array(l.quiz.questions.length).fill(null), quizSubmitted:false} : l))} />
+                  )}
+                </div>
+              )}
+
+              {/* ── Flashcards ── */}
+              {mode === 'flashcard' && (
+                <div>
+                  {activeDeck.length === 0 ? (
+                    <div style={{textAlign:'center', padding:'48px 0'}}>
+                      <div style={{fontSize:36, marginBottom:12}}>{generating?'⏳':'🃏'}</div>
+                      <p style={{fontSize:13, color:'#9991BF'}}>{generating?'Flashcards will appear shortly…':'No flashcards available for this lecture'}</p>
+                    </div>
+                  ) : deckDone ? (
+                    <div style={{textAlign:'center', padding:'48px 0'}}>
+                      <div style={{fontSize:40, marginBottom:12}}>🎉</div>
+                      <h3 style={{fontSize:16, fontWeight:700, color:'#302C41', marginBottom:4}}>Deck complete!</h3>
+                      <p style={{fontSize:13, color:'#9991BF', marginBottom:20}}>{gotIt.size} understood · {reviewAgain.size} to review</p>
+                      <div style={{display:'flex', justifyContent:'center', gap:12}}>
+                        {reviewAgain.size > 0 && (
+                          <button onClick={() => {
+                            const toReview = activeDeck.filter(c => reviewAgain.has(c.id));
+                            setDeck(prev => { const rest=prev.filter(c=>!activeDeck.find(a=>a.id===c.id)); return [...rest,...toReview]; });
+                            setCardIdx(0); setFlipped(false); setGotIt(new Set()); setReviewAgain(new Set()); setDeckDone(false);
+                          }} className="btn-primary">↻ Review {reviewAgain.size} again</button>
+                        )}
+                        <button onClick={() => { setCardIdx(0); setFlipped(false); setGotIt(new Set()); setReviewAgain(new Set()); setDeckDone(false); }}
+                          className="btn-secondary">Start over</button>
+                      </div>
+                    </div>
+                  ) : (() => {
+                    const card = activeDeck[cardIdx];
+                    if (!card) return null;
+                    return (
+                      <div>
+                        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8}}>
+                          <p style={{fontSize:12, color:'#9991BF'}}>{cardIdx+1} / {activeDeck.length} cards</p>
+                          <div style={{display:'flex', gap:12, fontSize:12}}>
+                            <span style={{color:'#22c55e', fontWeight:600}}>✓ {gotIt.size} got it</span>
+                            <span style={{color:'#f59e0b', fontWeight:600}}>↻ {reviewAgain.size} to review</span>
+                          </div>
+                        </div>
+                        <div style={{height:4, borderRadius:2, background:'#EDEAF4', overflow:'hidden', marginBottom:20}}>
+                          <div style={{height:'100%', borderRadius:2, background:'#EB7100', width:`${(cardIdx/activeDeck.length)*100}%`, transition:'width 0.3s ease'}}></div>
+                        </div>
+                        <div onClick={() => setFlipped(f=>!f)}
+                          style={{borderRadius:16, border:'1.5px solid #EDEAF4', padding:'36px 32px', cursor:'pointer', minHeight:240, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', background:'white', transition:'box-shadow 0.15s'}}
+                          onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 20px rgba(48,44,65,0.08)'}
+                          onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
+                          {!flipped ? (
+                            <div className="fade-in">
+                              <p style={{fontSize:11, fontWeight:700, color:'#EB7100', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16}}>{card.lecLabel}</p>
+                              <h3 style={{fontSize:22, fontWeight:700, color:'#302C41', marginBottom:16}}>{card.topicName}</h3>
+                              <p style={{fontSize:13, color:'#9991BF'}}>tap to reveal →</p>
+                            </div>
+                          ) : (
+                            <div className="fade-in" style={{width:'100%', textAlign:'left'}}>
+                              <p style={{fontSize:11, fontWeight:700, color:'#EB7100', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8}}>{card.topicName}</p>
+                              <p style={{fontSize:13, color:'#6b7280', lineHeight:1.6, marginBottom:16}}>{card.summary}</p>
+                              <ul style={{listStyle:'none', padding:0, margin:0, display:'flex', flexDirection:'column', gap:8}}>
+                                {card.concepts.map((c, i) => (
+                                  <li key={i} style={{display:'flex', alignItems:'flex-start', gap:8, fontSize:13, color:'#302C41'}}>
+                                    <span style={{color:'#EB7100', flexShrink:0, marginTop:2}}>▸</span>{c}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                        {flipped && (
+                          <div style={{display:'flex', gap:12, marginTop:16}} className="fade-in">
+                            <button onClick={() => markCard(false)}
+                              style={{flex:1, padding:'13px 0', fontWeight:600, fontSize:13, borderRadius:12, border:'1.5px solid #D5D1E6', background:'#F7F6FA', color:'#302C41', cursor:'pointer'}}>
+                              ↩ Review again
+                            </button>
+                            <button onClick={() => markCard(true)}
+                              style={{flex:1, padding:'13px 0', fontWeight:600, fontSize:13, borderRadius:12, border:'none', background:'#EB7100', color:'white', cursor:'pointer'}}>
+                              Got it ✓
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* ── Review (concepts to revisit based on wrong quiz answers) ── */}
+              {mode === 'review' && (
+                <div>
+                  {reviewTopics.length === 0 ? (
+                    <div style={{textAlign:'center', padding:'48px 0'}}>
+                      <div style={{fontSize:36, marginBottom:12}}>🎯</div>
+                      <p style={{fontSize:13, color:'#302C41', fontWeight:600, marginBottom:6}}>Nothing to review yet!</p>
+                      <p style={{fontSize:12, color:'#9991BF'}}>Take the Practice quiz to see which concepts you should revisit here.</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p style={{fontSize:12, color:'#9991BF', marginBottom:16}}>
+                        Based on your quiz results — focus on these {reviewTopics.length} concept{reviewTopics.length!==1?'s':''}:
+                      </p>
+                      <div style={{display:'flex', flexDirection:'column', gap:12}}>
+                        {reviewTopics.map((r, i) => (
+                          <div key={i} style={{borderRadius:12, border:'1.5px solid #fee2e2', padding:'14px 16px', background:'#fff5f5'}}>
+                            <div style={{display:'flex', alignItems:'flex-start', gap:10}}>
+                              <span style={{fontSize:16, flexShrink:0}}>❌</span>
+                              <div style={{flex:1}}>
+                                <p style={{fontSize:13, fontWeight:700, color:'#991b1b', marginBottom:4}}>{r.topic}</p>
+                                <p style={{fontSize:12, color:'#7f1d1d', marginBottom:8}}>{r.question}</p>
+                                <div style={{background:'#dcfce7', borderRadius:8, padding:'8px 12px'}}>
+                                  <p style={{fontSize:12, fontWeight:600, color:'#166534', marginBottom:2}}>✅ Correct answer</p>
+                                  <p style={{fontSize:12, color:'#166534'}}>{r.correctAnswer}</p>
+                                </div>
+                                {r.explanation && <p style={{fontSize:11, color:'#6b7280', marginTop:8, lineHeight:1.5}}>{r.explanation}</p>}
+                                <p style={{fontSize:11, color:'#9991BF', marginTop:4}}>From: {r.lecLabel}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SIDEBAR ─────────────────────────────────────────────────────────────────
+function Sidebar({ view, setView, profile, onReset }) {
+  const items = [
+    { id: 'dashboard', icon: '🏠', label: 'Dashboard' },
+    { id: 'finals', icon: '🎯', label: 'Finals Prep' },
+  ];
+  const initial = (profile?.name || 'S')[0].toUpperCase();
+  return (
+    <div className="sidebar w-56 flex-shrink-0 p-4 flex flex-col" style={{ minHeight: '100vh' }}>
+      <div className="flex items-center gap-2 px-3 py-3 mb-6">
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base flex-shrink-0" style={{ background: '#EB7100' }}>🎓</div>
+        <div>
+          <div className="text-white font-bold text-sm" style={{ letterSpacing: '-0.2px' }}>Finals Coach</div>
+          <div className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>{profile?.university?.split(' ')[0] || 'Campus'} · {profile?.year || 'Student'}</div>
+        </div>
+      </div>
+      <nav className="space-y-1">
+        {items.map(it => (
+          <button key={it.id} onClick={() => setView(it.id)}
+            className={`nav-item w-full flex items-center gap-3 px-3 py-2.5 text-left ${view === it.id ? 'active' : ''}`}>
+            <span className="text-base">{it.icon}</span>
+            <span className="text-sm font-medium" style={{ color: view === it.id ? '#fff' : 'rgba(255,255,255,0.6)' }}>{it.label}</span>
+            {it.id === 'finals' && <span className="ml-auto w-2 h-2 bg-red-400 rounded-full pulse-dot flex-shrink-0"></span>}
+          </button>
+        ))}
+      </nav>
+      <div className="mt-auto pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="flex items-center gap-2 px-3 py-2">
+          <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: '#EB7100' }}>{initial}</div>
+          <div className="min-w-0">
+            <div className="text-white text-xs font-semibold truncate">{profile?.name || 'Student'}</div>
+            <div className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>{profile?.major || 'Undeclared'}{profile?.minor ? ` · ${profile.minor}` : ''}</div>
+          </div>
+        </div>
+        <button onClick={onReset}
+          style={{ width:'100%', marginTop:4, padding:'5px 12px', background:'none', border:'none',
+            color:'rgba(255,255,255,0.25)', fontSize:11, cursor:'pointer', textAlign:'left', borderRadius:6 }}
+          onMouseEnter={e => e.currentTarget.style.color='rgba(255,255,255,0.55)'}
+          onMouseLeave={e => e.currentTarget.style.color='rgba(255,255,255,0.25)'}>
+          ↺ Start fresh
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── LOCALSTORAGE HELPERS ─────────────────────────────────────────────────────
+const LS = {
+  get: (key, fallback) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } },
+  set: (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) { console.warn('localStorage save failed:', e); } },
+  clear: (...keys) => keys.forEach(k => { try { localStorage.removeItem(k); } catch {} }),
+};
+
+// Strip file content from lectures before persisting (base64 data would blow localStorage quota)
+const stripFiles = (sgMap) => {
+  const out = {};
+  for (const [cid, lecs] of Object.entries(sgMap)) {
+    out[cid] = lecs.map(({ files: _f, ...rest }) => rest);
+  }
+  return out;
+};
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [apiKey, setApiKey] = useState('__server__'); // always use server-side key on Vercel
+  // ── Hydrate state from localStorage on first load ──────────────────────────
+  const [profile, setProfile] = useState(() => LS.get('ca_profile', null));
+  const [courses, setCourses] = useState(() => LS.get('ca_courses', COURSES));
+  const [sgLecturesByC, setSgLecturesByC] = useState(() => LS.get('ca_sg', {}));
+  const [view, setView] = useState('dashboard');
+  const [focusCourse, setFocusCourse] = useState(null);
+
+  // ── Persist state changes to localStorage ─────────────────────────────────
+  useEffect(() => { if (profile) LS.set('ca_profile', profile); }, [profile]);
+  useEffect(() => { LS.set('ca_courses', courses); }, [courses]);
+  useEffect(() => {
+    if (Object.keys(sgLecturesByC).length > 0) LS.set('ca_sg', stripFiles(sgLecturesByC));
+  }, [sgLecturesByC]);
+
+  const handleOnboardingComplete = (prof, userCourses) => {
+    setProfile(prof);
+    if (userCourses && userCourses.length > 0) setCourses(userCourses);
+  };
+
+  const navigate = (v, course = null) => {
+    setView(v);
+    if (v === 'finals' && course) setFocusCourse(course);
+    else setFocusCourse(null);
+  };
+
+  const resetAll = () => {
+    if (!window.confirm('This will clear all your data and start fresh. Continue?')) return;
+    LS.clear('ca_profile', 'ca_courses', 'ca_sg');
+    setProfile(null);
+    setCourses(COURSES);
+    setSgLecturesByC({});
+    setView('dashboard');
+  };
+
+  if (!apiKey) return <ApiKeyScreen onSubmit={setApiKey} />;
+  if (!profile) return <OnboardingWizard onComplete={handleOnboardingComplete} apiKey={apiKey} />;
+
+  return (
+    <div className="flex" style={{ minHeight: '100vh' }}>
+      <Sidebar view={view} setView={(v) => navigate(v)} profile={profile} onReset={resetAll} />
+      <main className="flex-1 p-6 scrollable" style={{ maxHeight: '100vh', overflowY: 'auto', background: '#F7F6FA' }}>
+        <div style={{ maxWidth: 1200 }}>
+          {view === 'dashboard' && <Dashboard courses={courses} setCourses={setCourses} onNavigate={navigate} profile={profile} sgLecturesByC={sgLecturesByC} />}
+          {view === 'finals' && <FinalsPrep courses={courses} setCourses={setCourses} apiKey={apiKey} focusCourse={focusCourse} profile={profile} onNavigate={navigate} sgLecturesByC={sgLecturesByC} setSgLecturesByC={setSgLecturesByC} />}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

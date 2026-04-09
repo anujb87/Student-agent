@@ -1,0 +1,54 @@
+VILLANOVA UNIVERSITY — STUDENT REGISTRATION CONFIRMATION
+Spring 2026 | Student: Jamie Chen | ID: 800123456
+College of Business | Major: Management Information Systems / Business Analytics
+--------------------------------------------------------------------
+
+REGISTERED COURSES
+
+1. MIS 3250 — Database Management Systems
+   Professor: Dr. Jennifer Holt
+   Credits: 3.0
+   Schedule: Mon / Wed 10:30 AM – 11:45 AM | Bartley Hall 109
+   Midterm Exam: March 24, 2026
+   Topics: Entity-Relationship Diagrams, SQL Queries, Normalization, Indexing, Stored Procedures
+
+2. BUS 3410 — Business Strategy & Policy
+   Professor: Prof. Marcus Reed
+   Credits: 3.0
+   Schedule: Tue / Thu 1:00 PM – 2:15 PM | Bartley Hall 204
+   Midterm Exam: April 2, 2026
+   Topics: Porter's Five Forces, Competitive Advantage, SWOT Analysis, Corporate Strategy, Case Studies
+
+3. MIS 3500 — IT Project Management
+   Professor: Dr. Sarah Kim
+   Credits: 3.0
+   Schedule: Mon / Wed / Fri 9:00 AM – 9:50 AM | Mendel Hall 168
+   Midterm Exam: April 8, 2026
+   Topics: Agile Methodology, Scrum, Project Charter, Risk Management, Gantt Charts, Stakeholder Communication
+
+4. STAT 4100 — Applied Regression Analysis
+   Professor: Dr. Paul Nguyen
+   Credits: 3.0
+   Schedule: Tue / Thu 3:00 PM – 4:15 PM | Mendel Hall 102
+   Midterm Exam: April 15, 2026
+   Topics: Linear Regression, Multiple Regression, Logistic Regression, ANOVA, R Programming, Model Diagnostics
+
+5. MGT 2200 — Organizational Behavior
+   Professor: Prof. Angela Torres
+   Credits: 3.0
+   Schedule: Mon / Wed 2:00 PM – 3:15 PM | Bartley Hall 313
+   Midterm Exam: April 22, 2026
+   Topics: Motivation Theory, Team Dynamics, Leadership Styles, Organizational Culture, Conflict Resolution
+
+6. BUS 2100 — Business Communications
+   Professor: Prof. David Park
+   Credits: 3.0
+   Schedule: Fri 12:00 PM – 2:30 PM | Sullivan Hall 201
+   Midterm Exam: April 10, 2026
+   Topics: Professional Writing, Presentations, Negotiation, Cross-cultural Communication, Digital Media
+
+--------------------------------------------------------------------
+Total Credits: 18.0
+Academic Standing: Good Standing
+Registration Date: January 6, 2026
+Advising Hold: None

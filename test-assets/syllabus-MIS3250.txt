@@ -1,0 +1,133 @@
+================================================================
+VILLANOVA UNIVERSITY — COLLEGE OF BUSINESS
+COURSE SYLLABUS — SPRING 2026
+================================================================
+
+COURSE:     MIS 3250 — Database Management Systems
+CREDITS:    3.0
+SECTION:    001
+LOCATION:   Bartley Hall, Room 109
+SCHEDULE:   Monday / Wednesday, 10:30 AM – 11:45 AM
+
+INSTRUCTOR: Dr. Jennifer Holt
+EMAIL:      jennifer.holt@villanova.edu
+OFFICE:     Bartley Hall 412
+OFFICE HRS: Tuesday 1:00–3:00 PM | Thursday 10:00 AM–12:00 PM | or by appointment
+
+TA:         Marcus Webb (mwebb@villanova.edu)
+TA HRS:     Monday / Wednesday 2:00–4:00 PM, Bartley Hall 2nd Floor Lab
+
+================================================================
+COURSE DESCRIPTION
+================================================================
+This course introduces the fundamental concepts of database management systems
+with an emphasis on relational databases and SQL. Students will learn to design,
+implement, and query databases for real-world business applications. Topics
+include data modeling, relational theory, SQL programming, normalization,
+transaction management, and an introduction to NoSQL systems.
+
+================================================================
+LEARNING OBJECTIVES
+================================================================
+By the end of this course, students will be able to:
+  1. Design entity-relationship (ER) diagrams for business scenarios
+  2. Translate ER diagrams into normalized relational schemas
+  3. Write complex SQL queries including joins, subqueries, and aggregations
+  4. Implement stored procedures, triggers, and views
+  5. Understand indexing strategies and query optimization
+  6. Describe basic NoSQL concepts and when to use them
+
+================================================================
+REQUIRED MATERIALS
+================================================================
+Textbook:   "Database Systems: Design, Implementation & Management"
+            Coronel & Morris, 14th Edition (Cengage)
+            Available at the Villanova Bookstore or as an e-book via MindTap
+
+Software:   MySQL Community Server (free) — setup instructions on Canvas
+            MySQL Workbench (free GUI client)
+
+Canvas:     All slides, assignments, and grades posted at canvas.villanova.edu
+
+================================================================
+GRADING BREAKDOWN
+================================================================
+  Participation & Attendance       5%
+  Weekly Lab Assignments (10)     20%    (2% each, lowest dropped)
+  SQL Quizzes (4)                 15%    (3.75% each)
+  Group Project — ER Design       10%
+  Midterm Exam                    25%
+  Final Exam                      25%
+  ─────────────────────────────────
+  TOTAL                          100%
+
+Grading Scale:
+  A  93–100 | A- 90–92 | B+ 87–89 | B  83–86 | B- 80–82
+  C+ 77–79  | C  73–76 | C- 70–72 | D  60–69  | F  below 60
+
+================================================================
+IMPORTANT DATES & DEADLINES
+================================================================
+Jan 22      First day of class
+Jan 29      Lab 1 due (Canvas, 11:59 PM)
+Feb 5       Lab 2 due
+Feb 5       SQL Quiz 1 — ER Diagrams & Relational Model (in class)
+Feb 12      Lab 3 due
+Feb 19      Lab 4 due
+Feb 19      SQL Quiz 2 — SQL Basics: SELECT, WHERE, JOIN (in class)
+Feb 26      Lab 5 due
+Mar 5       Group Project Part 1 due — ER Diagram (Canvas, 11:59 PM)
+Mar 12      Lab 6 due
+Mar 12      SQL Quiz 3 — Advanced SQL: Subqueries, Aggregation (in class)
+Mar 15–22   SPRING BREAK — No classes
+Mar 24      MIDTERM EXAM — in class, covers Weeks 1–8
+Mar 26      Lab 7 due
+Apr 2       Lab 8 due
+Apr 2       SQL Quiz 4 — Normalization & Indexing (in class)
+Apr 9       Group Project Final Submission due (Canvas, 11:59 PM)
+Apr 16      Lab 9 due
+Apr 23      Lab 10 due
+Apr 28      Last day of class
+May 5       FINAL EXAM — 10:30 AM, Bartley Hall 109 (cumulative)
+
+================================================================
+WEEKLY SCHEDULE
+================================================================
+Week 1  (Jan 22/24)   Introduction to Databases & DBMS concepts
+Week 2  (Jan 27/29)   Entity-Relationship (ER) Diagrams
+Week 3  (Feb 3/5)     Relational Model & ER-to-Table mapping  [Quiz 1]
+Week 4  (Feb 10/12)   SQL Fundamentals — SELECT, FROM, WHERE
+Week 5  (Feb 17/19)   SQL Joins — INNER, LEFT, RIGHT, FULL   [Quiz 2]
+Week 6  (Feb 24/26)   SQL Aggregation — GROUP BY, HAVING, subqueries
+Week 7  (Mar 3/5)     Views, Stored Procedures & Triggers
+Week 8  (Mar 10/12)   Normalization — 1NF, 2NF, 3NF, BCNF    [Quiz 3]
+        (Mar 15–22)   *** SPRING BREAK ***
+Week 9  (Mar 24/26)   *** MIDTERM EXAM (Mar 24) *** | Indexing & Query Optimization
+Week 10 (Mar 31/Apr 2) Transactions & Concurrency Control      [Quiz 4]
+Week 11 (Apr 7/9)     Security & Access Control
+Week 12 (Apr 14/16)   NoSQL Systems — MongoDB, Cassandra
+Week 13 (Apr 21/23)   Cloud Databases & Big Data intro
+Week 14 (Apr 28)      Review & Exam Prep
+Exam    (May 5)       *** FINAL EXAM, 10:30 AM ***
+
+================================================================
+COURSE POLICIES
+================================================================
+Attendance:   More than 3 unexcused absences will reduce your final grade by
+              one letter. Please notify Dr. Holt in advance if possible.
+
+Late Work:    Labs submitted late lose 10% per day. No submissions accepted
+              after solutions are posted (typically 1 week after due date).
+
+Exams:        No make-up exams without documented medical or family emergency.
+              Contact Dr. Holt BEFORE the exam if possible.
+
+Academic
+Integrity:    All submitted work must be your own. Use of AI tools to complete
+              lab assignments is not permitted. AI may be used for learning
+              concepts but not for generating solutions to graded work.
+
+Accessibility: Students needing accommodations should contact the Office of
+              Disability Services and provide documentation to Dr. Holt
+              within the first two weeks of class.
+================================================================

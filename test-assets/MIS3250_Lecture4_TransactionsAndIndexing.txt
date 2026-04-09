@@ -1,0 +1,165 @@
+MIS 3250 - Database Management Systems
+Lecture 4: Transactions, Concurrency Control, and Indexing
+Professor: Dr. Jennifer Holt
+Date: February 4, 2026
+
+=== SLIDE 1: Transactions ===
+A transaction is a logical unit of work — a sequence of operations that must be executed atomically.
+
+ACID Properties (must know cold for the exam):
+
+A — ATOMICITY
+"All or nothing." Either all operations in the transaction commit, or none do.
+If any operation fails, the entire transaction is rolled back.
+Example: Bank transfer — debit account A AND credit account B must both succeed.
+
+C — CONSISTENCY
+A transaction takes the database from one valid state to another valid state.
+All integrity constraints (PKs, FKs, CHECKs) must hold before AND after the transaction.
+
+I — ISOLATION
+Concurrent transactions appear to execute serially (one at a time).
+Intermediate states of a transaction are not visible to other transactions.
+Degree of isolation is configurable (see isolation levels).
+
+D — DURABILITY
+Once a transaction commits, its changes are permanent.
+Even in the event of system failure, committed data is not lost.
+Achieved through write-ahead logging (WAL) and checkpoints.
+
+SQL commands:
+  BEGIN TRANSACTION (or START TRANSACTION)
+  COMMIT   — make changes permanent
+  ROLLBACK — undo all changes since last BEGIN
+
+=== SLIDE 2: Transaction States ===
+State diagram:
+Active → Partially Committed → Committed
+                            ↘
+Active → Failed → Aborted (rolled back)
+
+Active: transaction is executing
+Partially committed: last statement executed, pre-commit checks in progress
+Committed: transaction successfully completed, changes written
+Failed: normal execution cannot proceed
+Aborted: transaction rolled back; DB restored to prior state
+
+=== SLIDE 3: Concurrency Problems ===
+When multiple transactions run concurrently without proper control:
+
+1. DIRTY READ (Read Uncommitted):
+   T2 reads data that T1 has modified but not yet committed.
+   If T1 rolls back, T2 has read invalid data.
+
+2. NON-REPEATABLE READ:
+   T1 reads a row; T2 updates and commits that row; T1 reads again → different value.
+   Same row, same query, different result within same transaction.
+
+3. PHANTOM READ:
+   T1 executes a range query; T2 inserts/deletes rows matching that range and commits;
+   T1 runs the same range query → different set of rows.
+
+4. LOST UPDATE:
+   T1 and T2 both read a value; both update it; one update overwrites the other.
+
+=== SLIDE 4: Isolation Levels ===
+SQL standard defines four isolation levels (trade-off between consistency and performance):
+
+Level               | Dirty Read | Non-Repeatable | Phantom
+--------------------|------------|----------------|--------
+READ UNCOMMITTED    | Possible   | Possible       | Possible
+READ COMMITTED      | Prevented  | Possible       | Possible
+REPEATABLE READ     | Prevented  | Prevented      | Possible
+SERIALIZABLE        | Prevented  | Prevented      | Prevented
+
+Default in most DBs: READ COMMITTED (PostgreSQL, Oracle) or REPEATABLE READ (MySQL InnoDB)
+
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
+=== SLIDE 5: Locking Protocols ===
+Locks prevent conflicting concurrent access:
+
+SHARED LOCK (S-lock): allows read; multiple transactions can hold simultaneously
+EXCLUSIVE LOCK (X-lock): allows read + write; only one transaction at a time
+
+Lock compatibility matrix:
+       |   S    |   X
+---S---|  YES   |  NO
+---X---|  NO    |  NO
+
+Two-Phase Locking (2PL):
+Phase 1 — Growing: transaction may acquire locks, cannot release any
+Phase 2 — Shrinking: transaction may release locks, cannot acquire any
+→ Guarantees serializability but can cause deadlocks
+
+Strict 2PL: all exclusive locks held until commit/abort (prevents cascading rollbacks)
+
+DEADLOCK: two transactions each waiting for the other to release a lock
+Resolution: detect cycle in waits-for graph → abort one transaction (victim selection)
+Prevention: timestamp-based protocols (Wait-Die, Wound-Wait)
+
+=== SLIDE 6: Indexing ===
+An index is a data structure that speeds up data retrieval.
+Trade-off: faster reads, slower writes, extra storage.
+
+B+ Tree Index (most common):
+- Balanced tree structure; all data stored in leaf nodes
+- Leaf nodes are linked → efficient range queries
+- O(log n) search, insert, delete
+- Good for equality and range queries
+- Supported in: MySQL, PostgreSQL, Oracle, SQL Server
+
+Hash Index:
+- Hash function maps key → bucket
+- O(1) average case for equality queries
+- NOT suitable for range queries (< , > , BETWEEN)
+- Used in: hash join operations, in-memory tables
+
+Clustered vs Non-Clustered:
+- Clustered index: physical order of table rows matches index order; only ONE per table
+- Non-clustered index: separate structure with pointers to actual rows; many per table
+- In MySQL InnoDB: PK is always the clustered index
+
+Index selectivity:
+- High selectivity (many distinct values) → index is useful
+- Low selectivity (few distinct values, e.g., boolean) → full table scan may be faster
+
+CREATE INDEX idx_student_gpa ON Student(GPA);
+CREATE INDEX idx_enroll_composite ON Enrollment(StudentID, CourseID);
+DROP INDEX idx_student_gpa ON Student;
+
+=== SLIDE 7: Query Optimization Basics ===
+The query optimizer converts SQL into an execution plan.
+
+Key concepts:
+- Statistics: DB maintains statistics (row counts, histograms) to estimate costs
+- Cost estimation: estimates I/O, CPU, memory for each plan
+- Plan selection: chooses lowest estimated cost plan
+
+Heuristic optimization rules:
+1. Apply selections (WHERE) as early as possible — reduce rows
+2. Apply projections early — reduce columns
+3. Join smaller intermediate results first
+4. Use indexes when available and selective
+
+EXPLAIN (MySQL) / EXPLAIN ANALYZE (PostgreSQL):
+Shows execution plan — use to identify slow queries.
+Key things to look for: table scan (bad) vs index seek (good), join type (nested loop vs hash join)
+
+=== STUDENT NOTES ===
+- ACID: Dr. Holt said "I will give you a scenario on the exam and ask which ACID property is violated"
+- Know all 3 concurrency problems (dirty read, non-repeatable, phantom) and which isolation level prevents each
+- B+ Tree vs Hash: know when to use each — Hash CANNOT do range queries
+- Deadlock detection: draw the waits-for graph, look for cycle
+
+=== IMPORTANT: Final Exam Topics (Dr. Holt confirmed) ===
+High priority:
+1. ACID properties with examples
+2. Isolation levels and which anomalies they prevent
+3. B+ tree vs hash index trade-offs
+4. When to use an index (selectivity, query type)
+
+Medium priority:
+5. 2PL protocol steps
+6. Deadlock detection method
+7. Clustered vs non-clustered index

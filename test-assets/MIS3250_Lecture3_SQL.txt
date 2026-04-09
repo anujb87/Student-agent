@@ -1,0 +1,189 @@
+MIS 3250 - Database Management Systems
+Lecture 3: SQL — From Basics to Advanced Queries
+Professor: Dr. Jennifer Holt
+Date: January 28, 2026
+
+=== SLIDE 1: SQL Overview ===
+SQL (Structured Query Language) — standard language for relational databases.
+Originally called SEQUEL, developed at IBM in the 1970s.
+
+SQL components:
+- DDL (Data Definition Language): CREATE, ALTER, DROP
+- DML (Data Manipulation Language): SELECT, INSERT, UPDATE, DELETE
+- DCL (Data Control Language): GRANT, REVOKE
+- TCL (Transaction Control Language): COMMIT, ROLLBACK, SAVEPOINT
+
+SQL is declarative: you describe WHAT you want, not HOW to get it.
+The query optimizer decides the execution plan.
+
+=== SLIDE 2: DDL — Creating Tables ===
+CREATE TABLE Student (
+  StudentID   INT           PRIMARY KEY,
+  FirstName   VARCHAR(50)   NOT NULL,
+  LastName    VARCHAR(50)   NOT NULL,
+  Email       VARCHAR(100)  UNIQUE,
+  GPA         DECIMAL(3,2)  CHECK (GPA >= 0.0 AND GPA <= 4.0),
+  DeptID      INT           REFERENCES Department(DeptID)
+                            ON DELETE SET NULL
+                            ON UPDATE CASCADE
+);
+
+Constraints summary:
+- PRIMARY KEY: unique + not null, one per table
+- UNIQUE: allows multiple per table; can be NULL
+- NOT NULL: value required
+- CHECK: custom condition
+- FOREIGN KEY / REFERENCES: referential integrity
+
+=== SLIDE 3: Basic SELECT ===
+SELECT [DISTINCT] column_list
+FROM   table_name
+WHERE  condition
+ORDER BY column [ASC|DESC];
+
+Examples:
+-- All students
+SELECT * FROM Student;
+
+-- Specific columns
+SELECT FirstName, LastName, GPA FROM Student;
+
+-- With condition
+SELECT * FROM Student WHERE GPA >= 3.5;
+
+-- Pattern matching
+SELECT * FROM Student WHERE LastName LIKE 'Sm%';
+-- % = any sequence of characters
+-- _ = exactly one character
+
+-- NULL handling
+SELECT * FROM Student WHERE DeptID IS NULL;
+SELECT * FROM Student WHERE DeptID IS NOT NULL;
+
+-- BETWEEN
+SELECT * FROM Student WHERE GPA BETWEEN 3.0 AND 3.5;
+
+-- IN
+SELECT * FROM Student WHERE DeptID IN (101, 102, 105);
+
+=== SLIDE 4: Aggregate Functions and GROUP BY ===
+Aggregate functions operate on a set of values:
+- COUNT(*) — count all rows
+- COUNT(col) — count non-NULL values
+- SUM(col) — total
+- AVG(col) — average
+- MAX(col) / MIN(col) — maximum / minimum
+
+GROUP BY: group rows sharing a value; aggregate applies per group
+HAVING: filter groups AFTER aggregation (like WHERE but for groups)
+
+-- Students per department
+SELECT DeptID, COUNT(*) AS NumStudents
+FROM Student
+GROUP BY DeptID;
+
+-- Departments with more than 50 students and avg GPA > 3.0
+SELECT DeptID, COUNT(*) AS NumStudents, AVG(GPA) AS AvgGPA
+FROM Student
+GROUP BY DeptID
+HAVING COUNT(*) > 50 AND AVG(GPA) > 3.0;
+
+ORDER OF OPERATIONS (critical for exam!):
+FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY
+Note: Cannot use column aliases in WHERE; can use them in ORDER BY (some DBs).
+
+=== SLIDE 5: JOINs ===
+JOINs combine rows from two or more tables based on a related column.
+
+INNER JOIN: rows that match in BOTH tables
+SELECT s.Name, e.Grade, c.Title
+FROM Student s
+INNER JOIN Enrollment e ON s.StudentID = e.StudentID
+INNER JOIN Course c    ON e.CourseID   = c.CourseID;
+
+LEFT (OUTER) JOIN: all rows from left table + matching rows from right (NULLs for no match)
+SELECT s.Name, e.Grade
+FROM Student s
+LEFT JOIN Enrollment e ON s.StudentID = e.StudentID;
+-- Includes students with NO enrollments
+
+RIGHT (OUTER) JOIN: all rows from right table + matching from left
+FULL OUTER JOIN: all rows from both tables (MySQL doesn't support natively)
+CROSS JOIN: Cartesian product (every row × every row)
+SELF JOIN: join a table with itself (e.g., employee hierarchy)
+
+=== SLIDE 6: Subqueries ===
+A query nested inside another query.
+
+Scalar subquery (returns one value):
+SELECT Name FROM Student
+WHERE GPA = (SELECT MAX(GPA) FROM Student);
+
+Subquery with IN:
+SELECT Name FROM Student
+WHERE StudentID IN (
+  SELECT StudentID FROM Enrollment WHERE Grade = 'A'
+);
+
+Correlated subquery (references outer query — runs once per outer row):
+SELECT Name FROM Student s
+WHERE GPA > (
+  SELECT AVG(GPA) FROM Student
+  WHERE DeptID = s.DeptID
+);
+
+EXISTS / NOT EXISTS:
+SELECT Name FROM Student s
+WHERE EXISTS (
+  SELECT 1 FROM Enrollment e WHERE e.StudentID = s.StudentID
+);
+
+=== SLIDE 7: Views, CTEs, and Window Functions ===
+VIEW — a virtual table stored as a query:
+CREATE VIEW HighGPA AS
+  SELECT * FROM Student WHERE GPA >= 3.7;
+
+Benefits: simplify complex queries, add security layer, logical data independence
+
+CTE (Common Table Expression) — WITH clause:
+WITH AvgByDept AS (
+  SELECT DeptID, AVG(GPA) AS AvgGPA
+  FROM Student GROUP BY DeptID
+)
+SELECT s.Name, s.GPA, a.AvgGPA
+FROM Student s
+JOIN AvgByDept a ON s.DeptID = a.DeptID;
+
+Window functions (OVER clause):
+SELECT Name, GPA,
+  RANK()      OVER (PARTITION BY DeptID ORDER BY GPA DESC) AS RankInDept,
+  AVG(GPA)    OVER (PARTITION BY DeptID)                  AS AvgDeptGPA,
+  ROW_NUMBER() OVER (ORDER BY GPA DESC)                   AS OverallRank
+FROM Student;
+
+Common window functions: ROW_NUMBER, RANK, DENSE_RANK, LEAD, LAG, SUM, AVG
+
+=== STUDENT NOTES ===
+- "The ORDER OF OPERATIONS question appears on literally every exam she gives" (confirmed by TA)
+- HAVING vs WHERE: WHERE filters rows BEFORE grouping; HAVING filters AFTER
+- Correlated subqueries are slower than JOINs — know when to use each
+- NULL arithmetic: NULL + anything = NULL; NULL = NULL is FALSE, use IS NULL
+
+=== LAB EXERCISE (from class) ===
+Write a query to find all students who are enrolled in more courses than the average number of courses per student.
+
+Answer:
+WITH EnrollCount AS (
+  SELECT StudentID, COUNT(*) AS NumCourses
+  FROM Enrollment
+  GROUP BY StudentID
+),
+AvgCount AS (
+  SELECT AVG(NumCourses) AS AvgCourses FROM EnrollCount
+)
+SELECT s.Name, ec.NumCourses
+FROM Student s
+JOIN EnrollCount ec ON s.StudentID = ec.StudentID
+CROSS JOIN AvgCount
+WHERE ec.NumCourses > AvgCount.AvgCourses
+ORDER BY ec.NumCourses DESC;

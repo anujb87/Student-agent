@@ -1,0 +1,215 @@
+MIS 3250 - Database Management Systems
+Professor Practice Quiz — Covers Lectures 1–4
+Professor: Dr. Jennifer Holt
+Released: February 10, 2026
+
+Instructions: This is an ungraded practice quiz to help you prepare for the midterm.
+Time yourself: aim to complete in 45 minutes.
+Answers are provided at the end — attempt all questions before checking.
+
+=== SECTION A: Multiple Choice (2 pts each) ===
+
+1. Which of the following is NOT an advantage of using a DBMS over flat file storage?
+   a) Data independence
+   b) Concurrent access by multiple users
+   c) Faster read performance for all query types
+   d) Backup and recovery mechanisms
+
+2. In an ER diagram, a weak entity is represented by:
+   a) A single rectangle
+   b) A dashed ellipse
+   c) A double rectangle
+   d) A diamond with a double line
+
+3. Which normal form specifically addresses partial dependencies?
+   a) 1NF
+   b) 2NF
+   c) 3NF
+   d) BCNF
+
+4. Given the relation R(A, B, C, D) with FDs: A→B, B→C, A→D
+   Which of the following is a candidate key?
+   a) {A, B}
+   b) {A}
+   c) {B, D}
+   d) {A, C}
+
+5. In SQL, which clause is used to filter groups AFTER aggregation?
+   a) WHERE
+   b) GROUP BY
+   c) HAVING
+   d) ORDER BY
+
+6. What type of JOIN returns all rows from the left table, with NULLs for non-matching rows from the right table?
+   a) INNER JOIN
+   b) RIGHT OUTER JOIN
+   c) FULL OUTER JOIN
+   d) LEFT OUTER JOIN
+
+7. Which ACID property ensures that once a transaction commits, its changes survive system failure?
+   a) Atomicity
+   b) Consistency
+   c) Isolation
+   d) Durability
+
+8. A dirty read occurs when:
+   a) A transaction reads a value it has already written
+   b) A transaction reads uncommitted changes made by another transaction
+   c) Two transactions read the same row and get different values
+   d) A range query returns different rows in two executions
+
+9. Which isolation level prevents dirty reads but still allows non-repeatable reads?
+   a) READ UNCOMMITTED
+   b) READ COMMITTED
+   c) REPEATABLE READ
+   d) SERIALIZABLE
+
+10. A B+ Tree index is preferred over a Hash index when:
+    a) Only equality queries are needed
+    b) In-memory performance is the top priority
+    c) Range queries (BETWEEN, <, >) are frequent
+    d) The key values are all numeric
+
+11. Which SQL command would you use to see the execution plan for a query in PostgreSQL?
+    a) SHOW PLAN
+    b) EXPLAIN ANALYZE
+    c) DESCRIBE QUERY
+    d) TRACE SELECT
+
+12. In Two-Phase Locking (2PL), during the shrinking phase:
+    a) A transaction may acquire new locks but not release any
+    b) A transaction may release locks but not acquire new ones
+    c) A transaction holds all locks until commit
+    d) A transaction can both acquire and release locks freely
+
+=== SECTION B: Short Answer (5 pts each) ===
+
+13. List the four ACID properties and give a one-sentence explanation of each.
+
+14. Consider the following relation:
+    OrderItem(OrderID, ProductID, ProductName, ProductPrice, Quantity, CustomerID, CustomerName)
+    PK = {OrderID, ProductID}
+
+    Identify ALL functional dependencies present (assume reasonable business rules).
+    Then state which normal form the relation is in, and decompose it fully to 3NF.
+
+15. Explain the difference between a correlated subquery and a non-correlated subquery.
+    When would you prefer to use a JOIN instead of a correlated subquery? Why?
+
+16. You have a table Employee(EmpID, Name, DeptID, Salary) with 2 million rows.
+    A query frequently runs: SELECT * FROM Employee WHERE DeptID = 5 AND Salary > 80000;
+
+    a) What type of index would you create, and on which column(s)?
+    b) Would a Hash index work here? Why or why not?
+    c) What is index selectivity and how does it affect your decision?
+
+17. Draw (or describe in text) the transaction state diagram. Label all states and transitions.
+    Under what condition does a transaction move from "Partially Committed" to "Failed"?
+
+=== SECTION C: SQL Writing (8 pts each) ===
+
+Use the following schema for questions 18–20:
+    Student(StudentID, Name, GPA, DeptID)
+    Department(DeptID, DeptName, Budget)
+    Course(CourseID, Title, Credits, DeptID)
+    Enrollment(StudentID, CourseID, Grade, Semester)
+    Professor(ProfID, Name, DeptID)
+    Teaching(ProfID, CourseID, Semester)
+
+18. Write a query to find the name and GPA of every student whose GPA is above the average GPA
+    of students in their own department. Sort results by GPA descending.
+
+19. Write a query that returns each department's name, number of enrolled students (across all
+    semesters), and average GPA of those enrolled students — but only for departments where
+    more than 100 distinct students have enrolled. Use a CTE.
+
+20. Write a query using window functions to rank students within each department by GPA
+    (highest GPA = rank 1). Include: StudentID, Name, DeptID, GPA, and their rank within
+    their department. Also include a column showing each student's GPA relative to their
+    department average (GPA minus dept avg GPA, rounded to 2 decimal places).
+
+=== ANSWER KEY ===
+
+Section A:
+1. c  2. c  3. b  4. b  5. c  6. d  7. d  8. b  9. b  10. c  11. b  12. b
+
+Section B:
+13. Atomicity: all operations complete or none do (all-or-nothing).
+    Consistency: transaction moves DB from one valid state to another, respecting all constraints.
+    Isolation: concurrent transactions behave as if they execute serially; intermediate states invisible.
+    Durability: committed changes are permanent even after system failure (via WAL/checkpoints).
+
+14. FDs:
+    - ProductID → ProductName, ProductPrice  (partial dependency on part of PK)
+    - CustomerID → CustomerName              (non-key → non-key, via OrderID→CustomerID)
+    - OrderID → CustomerID                   (partial dependency on part of PK)
+    - OrderID, ProductID → Quantity          (full dependency — correct)
+
+    Current form: 1NF only (has partial dependencies → violates 2NF)
+
+    3NF decomposition:
+    - Product(ProductID, ProductName, ProductPrice)
+    - Customer(CustomerID, CustomerName)
+    - Order(OrderID, CustomerID)
+    - OrderItem(OrderID, ProductID, Quantity)
+
+15. A non-correlated subquery runs once and returns a result used by the outer query.
+    A correlated subquery references a column from the outer query and re-executes for every row.
+
+    Prefer JOINs over correlated subqueries when: the operation can be expressed as a join (which
+    the optimizer can better parallelize and index-seek), and when performance matters on large
+    tables — correlated subqueries are O(n) executions.
+
+16. a) Composite index on (DeptID, Salary) — covers both filter columns in one index scan.
+        Put DeptID first (equality filter) then Salary (range filter): idx on (DeptID, Salary).
+    b) No — Hash index cannot handle range conditions (Salary > 80000). Hash indexes only
+       support equality (=). A B+ tree is needed for range queries.
+    c) Selectivity = number of distinct values / total rows. High selectivity → index is efficient
+       because it narrows down rows quickly. DeptID alone may have low selectivity (few depts),
+       but the composite (DeptID, Salary) with the range filter will be highly selective.
+
+17. States: Active → Partially Committed → Committed
+                                        ↘ Failed → Aborted
+            Active → Failed → Aborted
+
+    "Partially Committed" to "Failed": occurs when post-execution checks fail — e.g., a constraint
+    violation is detected during pre-commit validation, or the system cannot write to disk (I/O error).
+
+Section C:
+
+18. SELECT s.Name, s.GPA
+    FROM Student s
+    WHERE s.GPA > (
+      SELECT AVG(s2.GPA)
+      FROM Student s2
+      WHERE s2.DeptID = s.DeptID
+    )
+    ORDER BY s.GPA DESC;
+
+19. WITH EnrolledStudents AS (
+      SELECT s.StudentID, s.DeptID, s.GPA
+      FROM Student s
+      JOIN Enrollment e ON s.StudentID = e.StudentID
+    ),
+    DeptStats AS (
+      SELECT d.DeptName,
+             COUNT(DISTINCT es.StudentID) AS NumStudents,
+             AVG(es.GPA) AS AvgGPA
+      FROM Department d
+      JOIN EnrolledStudents es ON d.DeptID = es.DeptID
+      GROUP BY d.DeptID, d.DeptName
+      HAVING COUNT(DISTINCT es.StudentID) > 100
+    )
+    SELECT DeptName, NumStudents, ROUND(AvgGPA, 2) AS AvgGPA
+    FROM DeptStats
+    ORDER BY NumStudents DESC;
+
+20. SELECT
+      StudentID,
+      Name,
+      DeptID,
+      GPA,
+      RANK() OVER (PARTITION BY DeptID ORDER BY GPA DESC) AS RankInDept,
+      ROUND(GPA - AVG(GPA) OVER (PARTITION BY DeptID), 2) AS GPAVsDeptAvg
+    FROM Student
+    ORDER BY DeptID, RankInDept;

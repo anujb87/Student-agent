@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Syllabus — MIS 3250 Database Management Systems</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Georgia', serif; background: #f4f4f4; color: #1a1a1a; padding: 30px; font-size: 14px; }
+  .page { max-width: 860px; margin: 0 auto; background: white; border: 1px solid #ccc; }
+
+  /* Header */
+  .header { background: #003087; color: white; padding: 24px 32px; }
+  .header h1 { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.7; margin-bottom: 6px; font-family: Arial, sans-serif; }
+  .header h2 { font-size: 22px; font-weight: bold; margin-bottom: 4px; }
+  .header h3 { font-size: 15px; font-weight: normal; opacity: 0.85; }
+
+  /* Course meta strip */
+  .meta { display: grid; grid-template-columns: repeat(4, 1fr); background: #f0f4f8; border-bottom: 2px solid #003087; }
+  .meta-cell { padding: 12px 16px; border-right: 1px solid #dde3eb; }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .label { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #888; font-family: Arial; margin-bottom: 3px; }
+  .meta-cell .value { font-size: 13px; font-weight: bold; color: #003087; font-family: Arial; }
+
+  .body { padding: 28px 32px; }
+
+  /* Section */
+  .section { margin-bottom: 26px; }
+  .section-title { font-family: Arial, sans-serif; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px; color: #003087; border-bottom: 2px solid #003087; padding-bottom: 5px; margin-bottom: 14px; }
+
+  /* Instructor block */
+  .instructor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .info-block { background: #f8f9fc; border-left: 3px solid #003087; padding: 12px 14px; border-radius: 0 6px 6px 0; }
+  .info-block .name { font-size: 15px; font-weight: bold; margin-bottom: 6px; }
+  .info-block .row { font-size: 12px; color: #444; margin-bottom: 3px; font-family: Arial; }
+  .info-block .row span { font-weight: bold; color: #003087; }
+
+  /* Grading table */
+  .grade-table { width: 100%; border-collapse: collapse; font-family: Arial; }
+  .grade-table th { background: #003087; color: white; padding: 8px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .grade-table td { padding: 9px 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+  .grade-table tr:nth-child(even) td { background: #f8f9fc; }
+  .grade-table .total td { font-weight: bold; background: #e8edf5; border-top: 2px solid #003087; }
+  .pct { font-weight: bold; color: #003087; }
+
+  /* Dates table */
+  .dates-table { width: 100%; border-collapse: collapse; font-family: Arial; font-size: 13px; }
+  .dates-table tr { border-bottom: 1px solid #eee; }
+  .dates-table tr:hover td { background: #f0f4ff; }
+  .dates-table td { padding: 7px 10px; vertical-align: top; }
+  .dates-table .date-col { width: 100px; font-weight: bold; color: #003087; white-space: nowrap; }
+  .badge { display: inline-block; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 99px; margin-left: 6px; font-family: Arial; }
+  .badge-exam { background: #fde8e8; color: #b91c1c; }
+  .badge-quiz { background: #fef3c7; color: #92400e; }
+  .badge-lab  { background: #e0f2fe; color: #075985; }
+  .badge-project { background: #ede9fe; color: #5b21b6; }
+  .badge-break { background: #d1fae5; color: #065f46; }
+
+  /* Weekly schedule */
+  .week-table { width: 100%; border-collapse: collapse; font-family: Arial; font-size: 12px; }
+  .week-table th { background: #003087; color: white; padding: 7px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .week-table td { padding: 7px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+  .week-table tr:nth-child(even) td { background: #fafbfd; }
+  .week-table .wk { font-weight: bold; color: #003087; white-space: nowrap; }
+  .week-table .highlight td { background: #fff8e1 !important; font-weight: bold; }
+  .week-table .break td { background: #f0fdf4 !important; color: #166534; font-style: italic; }
+
+  /* Grading scale */
+  .grade-scale { display: flex; flex-wrap: wrap; gap: 8px; font-family: Arial; font-size: 12px; }
+  .gs-pill { background: #f0f4f8; border: 1px solid #d1d5db; border-radius: 6px; padding: 5px 10px; }
+  .gs-pill .letter { font-weight: bold; color: #003087; }
+
+  .footer { background: #f0f4f8; border-top: 2px solid #003087; padding: 12px 32px; font-family: Arial; font-size: 11px; color: #666; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <h1>Villanova University · College of Business · Spring 2026</h1>
+    <h2>MIS 3250 — Database Management Systems</h2>
+    <h3>Section 001 · Bartley Hall 109 · Monday / Wednesday 10:30–11:45 AM · 3.0 Credits</h3>
+  </div>
+
+  <div class="meta">
+    <div class="meta-cell"><div class="label">Instructor</div><div class="value">Dr. Jennifer Holt</div></div>
+    <div class="meta-cell"><div class="label">Email</div><div class="value" style="font-size:11px">jennifer.holt@villanova.edu</div></div>
+    <div class="meta-cell"><div class="label">Office Hours</div><div class="value" style="font-size:11px">Tue 1–3 PM · Thu 10 AM–12 PM</div></div>
+    <div class="meta-cell"><div class="label">Office</div><div class="value">Bartley Hall 412</div></div>
+  </div>
+
+  <div class="body">
+
+    <!-- Course Description -->
+    <div class="section">
+      <div class="section-title">Course Description</div>
+      <p style="line-height:1.7; color:#333">This course introduces the fundamental concepts of database management systems with an emphasis on relational databases and SQL. Students will learn to design, implement, and query databases for real-world business applications. Topics include data modeling, relational theory, SQL programming, normalization, transaction management, and an introduction to NoSQL systems.</p>
+    </div>
+
+    <!-- Instructor & TA -->
+    <div class="section">
+      <div class="section-title">Instructor &amp; Teaching Assistant</div>
+      <div class="instructor-grid">
+        <div class="info-block">
+          <div class="name">Dr. Jennifer Holt</div>
+          <div class="row">📍 <span>Office:</span> Bartley Hall 412</div>
+          <div class="row">📧 <span>Email:</span> jennifer.holt@villanova.edu</div>
+          <div class="row">🕐 <span>Office Hours:</span> Tue 1:00–3:00 PM</div>
+          <div class="row" style="padding-left:85px">Thu 10:00 AM–12:00 PM</div>
+          <div class="row">📅 <span>Or by appointment</span></div>
+        </div>
+        <div class="info-block">
+          <div class="name">Marcus Webb — Teaching Assistant</div>
+          <div class="row">📧 <span>Email:</span> mwebb@villanova.edu</div>
+          <div class="row">🕐 <span>TA Hours:</span> Mon/Wed 2:00–4:00 PM</div>
+          <div class="row">📍 <span>Location:</span> Bartley Hall 2nd Floor Lab</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grading -->
+    <div class="section">
+      <div class="section-title">Grading Breakdown</div>
+      <table class="grade-table">
+        <thead><tr><th>Component</th><th>Details</th><th>Weight</th></tr></thead>
+        <tbody>
+          <tr><td>Participation &amp; Attendance</td><td>In-class engagement</td><td class="pct">5%</td></tr>
+          <tr><td>Weekly Lab Assignments (10)</td><td>2% each · lowest score dropped</td><td class="pct">20%</td></tr>
+          <tr><td>SQL Quizzes (4)</td><td>3.75% each · in-class, open notes</td><td class="pct">15%</td></tr>
+          <tr><td>Group Project — ER Design</td><td>Teams of 3 · two submissions</td><td class="pct">10%</td></tr>
+          <tr><td>Midterm Exam</td><td>In-class · covers Weeks 1–8 · closed book</td><td class="pct">25%</td></tr>
+          <tr><td>Final Exam</td><td>Cumulative · May 5, 10:30 AM · closed book</td><td class="pct">25%</td></tr>
+        </tbody>
+        <tfoot>
+          <tr class="total"><td colspan="2">Total</td><td class="pct">100%</td></tr>
+        </tfoot>
+      </table>
+      <div style="margin-top:14px">
+        <div style="font-size:11px; font-family:Arial; color:#666; margin-bottom:8px; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px">Grading Scale</div>
+        <div class="grade-scale">
+          <div class="gs-pill"><span class="letter">A</span> 93–100</div>
+          <div class="gs-pill"><span class="letter">A−</span> 90–92</div>
+          <div class="gs-pill"><span class="letter">B+</span> 87–89</div>
+          <div class="gs-pill"><span class="letter">B</span> 83–86</div>
+          <div class="gs-pill"><span class="letter">B−</span> 80–82</div>
+          <div class="gs-pill"><span class="letter">C+</span> 77–79</div>
+          <div class="gs-pill"><span class="letter">C</span> 73–76</div>
+          <div class="gs-pill"><span class="letter">C−</span> 70–72</div>
+          <div class="gs-pill"><span class="letter">D</span> 60–69</div>
+          <div class="gs-pill"><span class="letter">F</span> &lt;60</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Important Dates -->
+    <div class="section">
+      <div class="section-title">Important Dates &amp; Deadlines</div>
+      <table class="dates-table">
+        <tbody>
+          <tr><td class="date-col">Jan 22</td><td>First day of class</td></tr>
+          <tr><td class="date-col">Jan 29</td><td>Lab 1 due — Canvas, 11:59 PM <span class="badge badge-lab">Lab</span></td></tr>
+          <tr><td class="date-col">Feb 5</td><td>Lab 2 due — Canvas, 11:59 PM <span class="badge badge-lab">Lab</span></td></tr>
+          <tr><td class="date-col">Feb 5</td><td>SQL Quiz 1 — ER Diagrams &amp; Relational Model (in class) <span class="badge badge-quiz">Quiz</span></td></tr>
+          <tr><td class="date-col">Feb 12</td><td>Lab 3 due — Canvas, 11:59 PM <span class="badge badge-lab">Lab</span></td></tr>
+          <tr><td class="date-col">Feb 19</td><td>Lab 4 due — Canvas, 11:59 PM <span class="badge badge-lab">Lab</span></td></tr>
+          <tr><td class="date-col">Feb 19</td><td>SQL Quiz 2 — SQL Basics: SELECT, WHERE, JOIN (in class) <span class="badge badge-quiz">Quiz</span></td></tr>
+          <tr><td class="date-col">Feb 26</td><td>Lab 5 due — Canvas, 11:59 PM <span class="badge badge-lab">Lab</span></td></tr>
+          <tr><td class="date-col">Mar 5</td><td>Group Project Part 1 due — ER Diagram, Canvas 11:59 PM <span class="badge badge-project">Project</span></td></tr>
+          <tr><td class="date-col">Mar 12</td><td>Lab 6 due — Canvas, 11:59 PM <span class="badge badge-lab">Lab</span></td></tr>
+          <tr><td class="date-col">Mar 12</td><td>SQL Quiz 3 — Advanced SQL: Subqueries &amp; Aggregation (in class) <span class="badge badge-quiz">Quiz</span></td></tr>
+          <tr style="background:#f0fdf4"><td class="date-col" style="color:#166534">Mar 15–22</td><td style="color:#166534; font-style:italic">🌴 Spring Break — No classes <span class="badge badge-break">Break</span></td></tr>
+          <tr style="background:#fff8e1"><td class="date-col" style="color:#b91c1c">Mar 24</td><td><strong>MIDTERM EXAM — in class, covers Weeks 1–8, closed book</strong> <span class="badge badge-exam">Midterm</span></td></tr>
+          <tr><td class="date-col">Mar 26</td><td>Lab 7 due — Canvas, 11:59 PM <span class="badge badge-lab">Lab</span></td></tr>
+          <tr><td class="date-col">Apr 2</td><td>Lab 8 due — Canvas, 11:59 PM <span class="badge badge-lab">Lab</span></td></tr>
+          <tr><td class="date-col">Apr 2</td><td>SQL Quiz 4 — Normalization &amp; Indexing (in class) <span class="badge badge-quiz">Quiz</span></td></tr>
+          <tr><td class="date-col">Apr 9</td><td>Group Project Final Submission due — Canvas, 11:59 PM <span class="badge badge-project">Project</span></td></tr>
+          <tr><td class="date-col">Apr 16</td><td>Lab 9 due — Canvas, 11:59 PM <span class="badge badge-lab">Lab</span></td></tr>
+          <tr><td class="date-col">Apr 23</td><td>Lab 10 due — Canvas, 11:59 PM <span class="badge badge-lab">Lab</span></td></tr>
+          <tr><td class="date-col">Apr 28</td><td>Last day of class</td></tr>
+          <tr style="background:#fff8e1"><td class="date-col" style="color:#b91c1c">May 5</td><td><strong>FINAL EXAM — 10:30 AM, Bartley Hall 109 (cumulative, closed book)</strong> <span class="badge badge-exam">Final</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Weekly Schedule -->
+    <div class="section">
+      <div class="section-title">Weekly Schedule</div>
+      <table class="week-table">
+        <thead><tr><th>Week</th><th>Dates</th><th>Topics</th><th>Due</th></tr></thead>
+        <tbody>
+          <tr><td class="wk">Week 1</td><td>Jan 22/27</td><td>Introduction to Databases &amp; DBMS Concepts</td><td>—</td></tr>
+          <tr><td class="wk">Week 2</td><td>Jan 27/29</td><td>Entity-Relationship (ER) Diagrams</td><td>Lab 1</td></tr>
+          <tr><td class="wk">Week 3</td><td>Feb 3/5</td><td>Relational Model &amp; ER-to-Table mapping</td><td>Lab 2 · Quiz 1</td></tr>
+          <tr><td class="wk">Week 4</td><td>Feb 10/12</td><td>SQL Fundamentals — SELECT, FROM, WHERE, ORDER BY</td><td>Lab 3</td></tr>
+          <tr><td class="wk">Week 5</td><td>Feb 17/19</td><td>SQL Joins — INNER, LEFT, RIGHT, FULL OUTER</td><td>Lab 4 · Quiz 2</td></tr>
+          <tr><td class="wk">Week 6</td><td>Feb 24/26</td><td>SQL Aggregation — GROUP BY, HAVING, Subqueries</td><td>Lab 5</td></tr>
+          <tr><td class="wk">Week 7</td><td>Mar 3/5</td><td>Views, Stored Procedures &amp; Triggers</td><td>Project Part 1</td></tr>
+          <tr><td class="wk">Week 8</td><td>Mar 10/12</td><td>Normalization — 1NF, 2NF, 3NF, BCNF</td><td>Lab 6 · Quiz 3</td></tr>
+          <tr class="break"><td class="wk">Break</td><td>Mar 15–22</td><td>🌴 Spring Break — No Classes</td><td>—</td></tr>
+          <tr class="highlight"><td class="wk">Week 9</td><td>Mar 24/26</td><td>⚠️ MIDTERM EXAM (Mar 24) | Indexing &amp; Query Optimization</td><td>Lab 7</td></tr>
+          <tr><td class="wk">Week 10</td><td>Mar 31/Apr 2</td><td>Transactions &amp; Concurrency Control (ACID properties)</td><td>Lab 8 · Quiz 4</td></tr>
+          <tr><td class="wk">Week 11</td><td>Apr 7/9</td><td>Database Security &amp; Access Control</td><td>Project Final</td></tr>
+          <tr><td class="wk">Week 12</td><td>Apr 14/16</td><td>NoSQL Systems — Document (MongoDB), Column (Cassandra)</td><td>Lab 9</td></tr>
+          <tr><td class="wk">Week 13</td><td>Apr 21/23</td><td>Cloud Databases &amp; Big Data introduction</td><td>Lab 10</td></tr>
+          <tr><td class="wk">Week 14</td><td>Apr 28</td><td>Review, Exam Prep &amp; Course Wrap-up</td><td>—</td></tr>
+          <tr class="highlight"><td class="wk">Final</td><td>May 5</td><td>⚠️ FINAL EXAM — 10:30 AM, Bartley Hall 109 (cumulative)</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>MIS 3250 — Database Management Systems · Spring 2026 · Dr. Jennifer Holt</span>
+    <span>Villanova University — College of Business</span>
+  </div>
+
+</div>
+</body>
+</html>

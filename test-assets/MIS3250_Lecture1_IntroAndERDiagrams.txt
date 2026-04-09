@@ -1,0 +1,129 @@
+MIS 3250 - Database Management Systems
+Lecture 1: Introduction to Databases and Entity-Relationship Diagrams
+Professor: Dr. Jennifer Holt
+Date: January 14, 2026
+
+=== SLIDE 1: What is a Database? ===
+A database is an organized collection of structured data stored electronically.
+A Database Management System (DBMS) is software that manages the database.
+Examples: MySQL, PostgreSQL, Oracle, SQL Server, MongoDB
+
+Key advantages over flat file systems:
+- Data independence: physical and logical separation
+- Reduced data redundancy
+- Improved data consistency and integrity
+- Concurrent access by multiple users
+- Security and access control
+- Backup and recovery mechanisms
+
+=== SLIDE 2: Types of Databases ===
+1. Relational (RDBMS) — tables, rows, columns; uses SQL
+   Examples: MySQL, Oracle, PostgreSQL
+2. NoSQL — flexible schema, horizontal scaling
+   - Document (MongoDB)
+   - Key-Value (Redis)
+   - Column-family (Cassandra)
+   - Graph (Neo4j)
+3. NewSQL — relational + NoSQL scalability
+   Examples: CockroachDB, Google Spanner
+
+For this course we focus primarily on relational databases.
+
+=== SLIDE 3: Database Architecture — Three-Schema Architecture ===
+Also known as the ANSI/SPARC architecture (1975)
+
+External Schema (View Level):
+- What users see; multiple different views possible
+- Hides complexity from end users
+
+Conceptual Schema (Logical Level):
+- Overall logical structure of the entire database
+- Describes entities, attributes, relationships, constraints
+- Independent of physical storage details
+
+Internal Schema (Physical Level):
+- Describes how data is physically stored
+- File organization, indexes, storage paths
+
+Data Independence:
+- Logical independence: change conceptual schema without changing external
+- Physical independence: change internal schema without changing conceptual
+
+=== SLIDE 4: Entity-Relationship (ER) Model ===
+Proposed by Peter Chen (1976). Conceptual data modeling technique.
+
+Core concepts:
+ENTITY: A real-world object or concept (e.g., Student, Course, Professor)
+- Represented as a rectangle in ER diagrams
+- Strong entity: has its own key
+- Weak entity: depends on another entity for identification (double rectangle)
+
+ATTRIBUTE: A property of an entity
+- Simple: atomic, cannot be divided (e.g., Age)
+- Composite: can be subdivided (e.g., Name → FirstName + LastName)
+- Multivalued: can have multiple values (e.g., PhoneNumbers) — double ellipse
+- Derived: computed from other attributes (e.g., Age from BirthDate) — dashed ellipse
+- Key attribute: uniquely identifies entity — underlined
+
+RELATIONSHIP: Association between entities
+- Represented as a diamond
+- Can have attributes of their own
+
+=== SLIDE 5: ER Diagram Notation ===
+Cardinality ratios:
+1:1  One-to-One    — one entity relates to exactly one other
+1:N  One-to-Many   — one entity relates to many others
+M:N  Many-to-Many  — many entities relate to many others
+
+Participation constraints:
+- Total (mandatory): every entity must participate — double line
+- Partial (optional): entity may or may not participate — single line
+
+Degree of relationship:
+- Binary: between two entity types (most common)
+- Ternary: between three entity types
+- Unary (recursive): entity relates to itself (e.g., Employee supervises Employee)
+
+=== SLIDE 6: Converting ER to Relational Schema ===
+Rules:
+1. Each strong entity → table with same attributes; key becomes PK
+2. Weak entity → table; PK = weak entity's partial key + owner's PK
+3. 1:1 relationship → include FK on either side (prefer total participation side)
+4. 1:N relationship → FK on the "N" side table
+5. M:N relationship → create a new junction/bridge table with FKs from both entities
+6. Multivalued attribute → new table with FK back to parent entity
+7. Composite attribute → include individual component attributes
+
+=== SLIDE 7: Extended ER (EER) Concepts ===
+Specialization: Top-down process; superclass broken into subclasses
+  - e.g., Employee → FullTime, PartTime
+  - Disjoint (d): entity can belong to at most one subclass
+  - Overlapping (o): entity can belong to multiple subclasses
+
+Generalization: Bottom-up process; subclasses merged into superclass
+
+Participation constraints on specialization:
+- Total: every entity must be a member of some subclass
+- Partial: entity may not belong to any subclass
+
+=== LECTURE NOTES (Student) ===
+Key things Dr. Holt emphasized:
+- Know all 4 types of attributes — multivalued is the one people miss on exams
+- Be able to convert any ER diagram to relational schema, especially M:N relationships
+- Participation constraint (total vs partial) affects how NULLs are handled when converting
+- She will definitely put an ER conversion question on the final
+
+=== PRACTICE PROBLEMS FROM CLASS ===
+Problem 1: Draw an ER diagram for a University system with Students, Courses, Professors, and Departments.
+- Student: StudentID (key), Name, DOB, Major
+- Course: CourseID (key), Title, Credits
+- Professor: ProfID (key), Name, Salary, Department
+- Relationships: Student ENROLLS IN Course (M:N, with Grade attribute), Professor TEACHES Course (1:N)
+
+Problem 2: Convert the above ER diagram to a relational schema.
+Answer:
+- Student(StudentID, Name, DOB, Major)
+- Course(CourseID, Title, Credits)
+- Professor(ProfID, Name, Salary, DeptName)
+- Enrollment(StudentID, CourseID, Grade) ← junction table for M:N
+- Teaching(ProfID, CourseID) OR add ProfID as FK in Course table

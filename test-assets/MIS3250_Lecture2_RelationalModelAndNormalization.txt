@@ -1,0 +1,148 @@
+MIS 3250 - Database Management Systems
+Lecture 2: The Relational Model and Normalization
+Professor: Dr. Jennifer Holt
+Date: January 21, 2026
+
+=== SLIDE 1: The Relational Data Model ===
+Introduced by E.F. Codd (1970) at IBM.
+Foundation of all relational databases.
+
+Key terms:
+- Relation: a table with rows and columns (= mathematical relation)
+- Tuple: a row in a table
+- Attribute: a column in a table
+- Domain: set of allowable values for an attribute
+- Degree: number of attributes in a relation
+- Cardinality: number of tuples in a relation
+- Relation Schema: R(A1, A2, ..., An) — the structure definition
+- Relation Instance: the actual data at a given time
+
+Properties of relations:
+1. No duplicate tuples
+2. Tuples are unordered
+3. Attributes are unordered
+4. Attribute values are atomic (1NF)
+
+=== SLIDE 2: Keys ===
+Super Key: any set of attributes that uniquely identifies a tuple
+Candidate Key: minimal super key (no proper subset is also a super key)
+Primary Key (PK): chosen candidate key for the table
+Alternate Key: candidate keys not chosen as PK
+Foreign Key (FK): attribute(s) that references the PK of another relation
+  → Enforces referential integrity
+
+Null values:
+- Unknown: value exists but we don't know it
+- Not applicable: attribute doesn't apply to this tuple
+- NULLs are problematic in arithmetic and comparisons
+
+=== SLIDE 3: Relational Integrity Constraints ===
+1. Domain Constraint: attribute values must be from the defined domain
+2. Key Constraint: no two tuples can have the same PK value
+3. Entity Integrity: PK cannot be NULL
+4. Referential Integrity: FK must reference an existing PK (or be NULL if optional)
+
+Referential integrity violation actions:
+- RESTRICT / NO ACTION: reject the operation
+- CASCADE: propagate the change (delete/update)
+- SET NULL: set FK to NULL
+- SET DEFAULT: set FK to a default value
+
+=== SLIDE 4: Functional Dependencies ===
+A functional dependency (FD) X → Y means:
+"If two tuples agree on X, they must agree on Y"
+X is the determinant, Y is the dependent
+
+Armstrong's Axioms:
+1. Reflexivity: if Y ⊆ X, then X → Y
+2. Augmentation: if X → Y, then XZ → YZ
+3. Transitivity: if X → Y and Y → Z, then X → Z
+
+Derived rules:
+- Union: if X→Y and X→Z, then X→YZ
+- Decomposition: if X→YZ, then X→Y and X→Z
+- Pseudotransitivity: if X→Y and WY→Z, then WX→Z
+
+Finding the closure of an attribute set X+ :
+Start with X+ = X
+For each FD A → B where A ⊆ X+, add B to X+
+Repeat until no more attributes can be added.
+
+=== SLIDE 5: Normalization ===
+Goal: eliminate data anomalies
+- Insertion anomaly: can't add data without other data
+- Deletion anomaly: deleting data causes unintended loss of other data
+- Update anomaly: same data stored in multiple places → inconsistency
+
+Normal Forms (each is stricter than the previous):
+
+1NF (First Normal Form):
+- All attribute values are atomic (no multivalued or composite attributes)
+- No repeating groups
+- Has a primary key
+
+2NF (Second Normal Form):
+- Must be in 1NF
+- No partial dependency: every non-key attribute is fully functionally dependent on the WHOLE PK
+- Only an issue when PK is composite
+- Fix: decompose into separate tables
+
+3NF (Third Normal Form):
+- Must be in 2NF
+- No transitive dependency: non-key attribute should not depend on another non-key attribute
+- Formal: for every FD X → A, either X is a superkey, OR A is a prime attribute (part of a candidate key)
+- Fix: decompose the transitive dependency into a new table
+
+BCNF (Boyce-Codd Normal Form):
+- Stricter version of 3NF
+- For every FD X → A, X must be a superkey
+- BCNF ⊃ 3NF (BCNF eliminates all redundancies that 3NF doesn't)
+- Tradeoff: BCNF decomposition may not be dependency-preserving
+
+4NF:
+- Must be in BCNF
+- No non-trivial multi-valued dependencies
+
+=== SLIDE 6: Normalization Example ===
+Consider relation: StudentCourse(StudentID, CourseID, StudentName, CourseName, InstructorID, InstructorName, Grade)
+
+Assume PK = {StudentID, CourseID}
+
+FDs:
+- StudentID → StudentName  (partial dependency — StudentName depends on part of PK)
+- CourseID → CourseName    (partial dependency)
+- CourseID → InstructorID  (partial dependency)
+- InstructorID → InstructorName  (transitive: via InstructorID)
+- StudentID, CourseID → Grade  (full dependency on PK — this is correct)
+
+Step 1: Remove partial dependencies (→ 2NF)
+  Student(StudentID, StudentName)
+  Course(CourseID, CourseName, InstructorID)
+  Enrollment(StudentID, CourseID, Grade)
+
+Step 2: Remove transitive dependency (→ 3NF)
+  InstructorID → InstructorName is still in Course table
+  Split: Instructor(InstructorID, InstructorName)
+  Course(CourseID, CourseName, InstructorID)  ← FK to Instructor
+
+Final 3NF schema:
+  Student(StudentID, StudentName)
+  Instructor(InstructorID, InstructorName)
+  Course(CourseID, CourseName, InstructorID)
+  Enrollment(StudentID, CourseID, Grade)
+
+=== STUDENT NOTES ===
+- Dr. Holt: "If I give you a table and some FDs on the final, you MUST be able to identify which normal form it's in and decompose it."
+- Remember: 2NF issues only arise with composite PKs. If PK is single attribute, automatically 2NF.
+- BCNF vs 3NF: BCNF is always better at removing redundancy but may lose FD preservation.
+- Mnemonics: "The key, the whole key, and nothing but the key" (1NF, 2NF, 3NF)
+
+=== QUIZ PRACTICE ===
+Q: Is the following relation in 3NF?
+   Employee(EmpID, EmpName, DeptID, DeptName, ManagerID)
+   FDs: EmpID→EmpName, EmpID→DeptID, DeptID→DeptName, DeptID→ManagerID
+
+A: No — transitive dependency: EmpID → DeptID → DeptName (and DeptName is a non-key attribute)
+   Decompose to:
+   Employee(EmpID, EmpName, DeptID)
+   Department(DeptID, DeptName, ManagerID)

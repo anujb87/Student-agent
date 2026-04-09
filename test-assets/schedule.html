@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Course Registration — Villanova University</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f5f5f5; color: #222; padding: 30px; }
+  .page { max-width: 820px; margin: 0 auto; background: white; border: 1px solid #ddd; padding: 0; }
+  .header { background: #003087; color: white; padding: 22px 30px; display: flex; align-items: center; gap: 18px; }
+  .header-logo { font-size: 38px; }
+  .header-text h1 { font-size: 20px; font-weight: bold; letter-spacing: 0.5px; }
+  .header-text p { font-size: 12px; margin-top: 3px; opacity: 0.8; }
+  .meta-bar { background: #e8edf5; border-bottom: 1px solid #ccd4e0; padding: 12px 30px; display: flex; gap: 40px; }
+  .meta-item label { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #666; display: block; }
+  .meta-item span { font-size: 13px; font-weight: 600; color: #003087; }
+  .section-title { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #888; padding: 18px 30px 8px; border-bottom: 1px solid #eee; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: #003087; color: white; }
+  thead th { padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  tbody tr { border-bottom: 1px solid #f0f0f0; }
+  tbody tr:nth-child(even) { background: #fafbfd; }
+  tbody td { padding: 12px; font-size: 13px; vertical-align: top; }
+  .course-code { font-weight: 700; color: #003087; white-space: nowrap; }
+  .course-name { font-weight: 600; }
+  .course-sub { font-size: 11px; color: #777; margin-top: 2px; }
+  .badge-exam { background: #fff0f0; color: #c0392b; border: 1px solid #f5c6c6; border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-credits { background: #eef3ff; color: #2563eb; border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; }
+  .topics { font-size: 11px; color: #555; line-height: 1.6; }
+  .footer { background: #f5f5f5; border-top: 1px solid #ddd; padding: 14px 30px; display: flex; justify-content: space-between; align-items: center; }
+  .footer p { font-size: 11px; color: #888; }
+  .status-pill { background: #d1fae5; color: #065f46; border-radius: 99px; padding: 3px 10px; font-size: 11px; font-weight: 700; }
+  .px30 { padding-left: 30px; padding-right: 30px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="header-logo">🦁</div>
+    <div class="header-text">
+      <h1>VILLANOVA UNIVERSITY</h1>
+      <p>Office of the Registrar — Student Registration Confirmation</p>
+    </div>
+  </div>
+
+  <div class="meta-bar">
+    <div class="meta-item"><label>Student</label><span>Jamie Chen</span></div>
+    <div class="meta-item"><label>Student ID</label><span>800123456</span></div>
+    <div class="meta-item"><label>Term</label><span>Spring 2026</span></div>
+    <div class="meta-item"><label>Major</label><span>MIS / Business Analytics</span></div>
+    <div class="meta-item"><label>Standing</label><span style="color:#065f46">✓ Good Standing</span></div>
+  </div>
+
+  <div class="section-title">Registered Courses — 18.0 Credit Hours</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:110px">Course</th>
+        <th>Title &amp; Instructor</th>
+        <th>Schedule</th>
+        <th>Midterm</th>
+        <th style="width:56px">Credits</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="course-code">MIS 3250</span></td>
+        <td>
+          <div class="course-name">Database Management Systems</div>
+          <div class="course-sub">Dr. Jennifer Holt · Bartley Hall 109</div>
+          <div class="topics" style="margin-top:5px">SQL, ER Diagrams, Normalization, Indexing, Stored Procedures</div>
+        </td>
+        <td><div class="course-sub">Mon / Wed</div><div style="font-size:12px;font-weight:600">10:30 – 11:45 AM</div></td>
+        <td><span class="badge-exam">Mar 24</span></td>
+        <td><span class="badge-credits">3.0</span></td>
+      </tr>
+      <tr>
+        <td><span class="course-code">BUS 3410</span></td>
+        <td>
+          <div class="course-name">Business Strategy &amp; Policy</div>
+          <div class="course-sub">Prof. Marcus Reed · Bartley Hall 204</div>
+          <div class="topics" style="margin-top:5px">Porter's Five Forces, SWOT Analysis, Competitive Advantage, Corporate Strategy</div>
+        </td>
+        <td><div class="course-sub">Tue / Thu</div><div style="font-size:12px;font-weight:600">1:00 – 2:15 PM</div></td>
+        <td><span class="badge-exam">Apr 2</span></td>
+        <td><span class="badge-credits">3.0</span></td>
+      </tr>
+      <tr>
+        <td><span class="course-code">MIS 3500</span></td>
+        <td>
+          <div class="course-name">IT Project Management</div>
+          <div class="course-sub">Dr. Sarah Kim · Mendel Hall 168</div>
+          <div class="topics" style="margin-top:5px">Agile, Scrum, Risk Management, Gantt Charts, Stakeholder Communication</div>
+        </td>
+        <td><div class="course-sub">Mon / Wed / Fri</div><div style="font-size:12px;font-weight:600">9:00 – 9:50 AM</div></td>
+        <td><span class="badge-exam">Apr 8</span></td>
+        <td><span class="badge-credits">3.0</span></td>
+      </tr>
+      <tr>
+        <td><span class="course-code">STAT 4100</span></td>
+        <td>
+          <div class="course-name">Applied Regression Analysis</div>
+          <div class="course-sub">Dr. Paul Nguyen · Mendel Hall 102</div>
+          <div class="topics" style="margin-top:5px">Linear &amp; Logistic Regression, ANOVA, R Programming, Model Diagnostics</div>
+        </td>
+        <td><div class="course-sub">Tue / Thu</div><div style="font-size:12px;font-weight:600">3:00 – 4:15 PM</div></td>
+        <td><span class="badge-exam">Apr 15</span></td>
+        <td><span class="badge-credits">3.0</span></td>
+      </tr>
+      <tr>
+        <td><span class="course-code">MGT 2200</span></td>
+        <td>
+          <div class="course-name">Organizational Behavior</div>
+          <div class="course-sub">Prof. Angela Torres · Bartley Hall 313</div>
+          <div class="topics" style="margin-top:5px">Motivation Theory, Leadership Styles, Team Dynamics, Conflict Resolution</div>
+        </td>
+        <td><div class="course-sub">Mon / Wed</div><div style="font-size:12px;font-weight:600">2:00 – 3:15 PM</div></td>
+        <td><span class="badge-exam">Apr 22</span></td>
+        <td><span class="badge-credits">3.0</span></td>
+      </tr>
+      <tr>
+        <td><span class="course-code">BUS 2100</span></td>
+        <td>
+          <div class="course-name">Business Communications</div>
+          <div class="course-sub">Prof. David Park · Sullivan Hall 201</div>
+          <div class="topics" style="margin-top:5px">Professional Writing, Presentations, Negotiation, Cross-cultural Communication</div>
+        </td>
+        <td><div class="course-sub">Friday</div><div style="font-size:12px;font-weight:600">12:00 – 2:30 PM</div></td>
+        <td><span class="badge-exam">Apr 10</span></td>
+        <td><span class="badge-credits">3.0</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <p>Printed: March 23, 2026 · Spring 2026 Registration · Villanova University Registrar</p>
+    <span class="status-pill">✓ Enrolled — 18 Credits</span>
+  </div>
+</div>
+</body>
+</html>
