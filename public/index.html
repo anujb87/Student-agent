@@ -1533,7 +1533,7 @@ Rules: finalDate is end-of-semester final only; topics are 5-15 main modules; de
 
 // ─── COURSE CARD (onboarding step 2) ─────────────────────────────────────────
 function CourseCardOnboarding({ c, idx, loaded, isUploading, sStatus, onUpdate, onRemove, onSyllabusClick, canRemove }) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(idx === 0);
   return (
     <div style={{ borderRadius: 12, border: '1.5px solid #EDEAF4', background: '#FAFAFA', overflow: 'hidden' }}>
       {/* Primary row */}
@@ -1577,11 +1577,6 @@ function CourseCardOnboarding({ c, idx, loaded, isUploading, sStatus, onUpdate, 
         <div style={{ padding: '4px 14px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid #F3F4F6' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
-              <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Professor</label>
-              <input value={c.professor} onChange={e => onUpdate('professor', e.target.value)} placeholder="Prof. Smith"
-                style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12, background: '#fff', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }} />
-            </div>
-            <div>
               <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Final Date</label>
               <input type="date" value={c.finalDate} onChange={e => onUpdate('finalDate', e.target.value)}
                 style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12, background: '#fff', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }} />
@@ -1591,16 +1586,11 @@ function CourseCardOnboarding({ c, idx, loaded, isUploading, sStatus, onUpdate, 
               <input type="number" min="0" max="100" value={c.currentGrade} onChange={e => onUpdate('currentGrade', e.target.value)} placeholder="e.g. 82"
                 style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12, background: '#fff', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }} />
             </div>
-            <div>
+            <div style={{ gridColumn: '1/-1' }}>
               <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Final Weight %</label>
               <input type="number" min="0" max="100" value={c.finalWeight} onChange={e => onUpdate('finalWeight', e.target.value)} placeholder="e.g. 30"
                 style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12, background: '#fff', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }} />
             </div>
-          </div>
-          <div>
-            <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Topics (comma-separated)</label>
-            <input value={c.topics} onChange={e => onUpdate('topics', e.target.value)} placeholder="e.g. Photosynthesis, Cell division, DNA replication"
-              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #E5E7EB', fontSize: 12, background: '#fff', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }} />
           </div>
         </div>
       )}
@@ -1934,61 +1924,7 @@ Rules:
           {step === 2 && (
             <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-              {/* ── Bulk upload zone ── */}
-              <div
-                onClick={() => !extracting && fileInputRef.current && fileInputRef.current.click()}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => { e.preventDefault(); if (!extracting && e.dataTransfer.files[0]) { const dt = { target: { files: e.dataTransfer.files } }; handleFileUpload(dt); } }}
-                style={{
-                  borderRadius: 14, border: `2px dashed ${extracting ? '#FFBC80' : '#EDEAF4'}`,
-                  background: extracting ? '#FFF3E8' : '#F7F6FA',
-                  padding: '20px 16px', textAlign: 'center', cursor: extracting ? 'wait' : 'pointer',
-                  transition: 'all 0.2s',
-                }}>
-                <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.txt" className="hidden" onChange={handleFileUpload} />
-                {extracting ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 28, height: 28, border: '3px solid #FFBC80', borderTopColor: '#EB7100', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
-                    <p className="text-sm font-semibold text-orange-700" style={{ margin: 0 }}>Reading your schedule…</p>
-                    <p className="text-xs text-orange-400" style={{ margin: 0 }}>Finals Coach is extracting your courses — just a moment</p>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ fontSize: 26, marginBottom: 6 }}>📄</div>
-                    <p className="text-sm font-bold text-gray-700" style={{ margin: '0 0 3px' }}>Upload your class schedule</p>
-                    <p className="text-xs text-gray-400" style={{ margin: 0 }}>PDF, screenshot, or text · Finals Coach extracts all courses automatically</p>
-                  </>
-                )}
-              </div>
-
-              {/* ── Feedback banner ── */}
-              {extractStatus === 'success' && (
-                <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span>✅</span>
-                  <div>
-                    <p className="text-sm font-semibold text-green-800" style={{ margin: 0 }}>{extractMsg}</p>
-                    <p className="text-xs text-green-600" style={{ margin: 0 }}>Upload a syllabus to each course for more detail, or edit manually.</p>
-                  </div>
-                </div>
-              )}
-              {extractStatus === 'error' && (
-                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span>⚠️</span>
-                  <div>
-                    <p className="text-sm font-semibold text-red-800" style={{ margin: 0 }}>{extractMsg}</p>
-                    <p className="text-xs text-red-500" style={{ margin: 0 }}>No worries — add your courses below.</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Divider */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ flex: 1, height: 1, background: '#EDEAF4' }}/>
-                <span className="text-xs font-semibold text-gray-400">or enter manually</span>
-                <div style={{ flex: 1, height: 1, background: '#EDEAF4' }}/>
-              </div>
-
-              {/* ── Course cards (collapsed by default) ── */}
+              {/* ── Course cards ── */}
               <input ref={syllabusRef} type="file" accept=".pdf,.txt,.png,.jpg,.jpeg" className="hidden"
                 onChange={e => handleSyllabusUpload(e, syllabusTargetId)} />
 
@@ -2009,8 +1945,10 @@ Rules:
 
               {courses.length < 7 && (
                 <button onClick={addCourse}
-                  style={{ width: '100%', padding: '9px', borderRadius: 10, border: '1.5px dashed #EDEAF4', background: 'transparent', fontSize: 12, color: '#9991BF', cursor: 'pointer', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
-                  + Add another course
+                  style={{ width: '100%', padding: '12px', borderRadius: 12, border: '2px solid #EB7100', background: '#FFF3E8', fontSize: 13, color: '#EB7100', cursor: 'pointer', fontWeight: 700, fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.15s' }}
+                  onMouseOver={e => { e.currentTarget.style.background = '#FFE8CC'; e.currentTarget.style.borderColor = '#C45E00'; }}
+                  onMouseOut={e => { e.currentTarget.style.background = '#FFF3E8'; e.currentTarget.style.borderColor = '#EB7100'; }}>
+                  <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add another course
                 </button>
               )}
             </div>
@@ -2044,11 +1982,11 @@ Rules:
                 </div>
               </div>
 
-              {/* Google Calendar sync */}
+              {/* Calendar sync */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <label className="text-xs font-bold text-gray-700 block">Sync your Google Calendar</label>
+                    <label className="text-xs font-bold text-gray-700 block">Sync your Google or Apple Calendar</label>
                     <p className="text-xs text-gray-400 mt-0.5">We'll find your free time slots and build your study schedule around them.</p>
                   </div>
                   {calStatus === 'success' && <span className="text-xs text-green-700 font-semibold bg-green-50 border border-green-200 px-3 py-1 rounded-full">✅ {calEvents.length} events loaded</span>}
@@ -2058,10 +1996,15 @@ Rules:
                   <div>
                     <button onClick={() => calRef.current?.click()} disabled={calParsing}
                       className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 hover:border-orange-400 hover:text-orange-600 transition-all font-medium flex items-center justify-center gap-2 disabled:opacity-50">
-                      {calParsing ? '⏳ Importing your calendar…' : '📅 Upload .ics file from Google Calendar'}
+                      {calParsing ? '⏳ Importing your calendar…' : '📅 Upload .ics file'}
                     </button>
                     {calStatus === 'error' && <p className="text-xs text-red-500 mt-1.5">Could not read file — make sure it's a valid .ics export.</p>}
-                    <p className="text-xs text-gray-400 mt-2">In Google Calendar: Settings → Import &amp; Export → Export → upload the .ics file.</p>
+                    <p className="text-xs text-gray-400 mt-2">Only upload a <span className="font-semibold text-gray-500">public calendar</span> that contains your college class schedule and exam dates. Do not upload your personal or private calendar.</p>
+                    <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                      <p className="text-xs font-semibold text-gray-600">How to make your calendar public and export it:</p>
+                      <p className="text-xs text-gray-500"><span className="font-semibold text-gray-600">Google Calendar:</span> Settings → pick your calendar → Access permissions → check "Make available to public" → copy the .ics link and download the file.</p>
+                      <p className="text-xs text-gray-500"><span className="font-semibold text-gray-600">Apple Calendar:</span> Open Calendar → click the info icon next to your calendar → enable "Public Calendar" → copy the link, open it in a browser, and download the .ics file.</p>
+                    </div>
                   </div>
                 ) : (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
@@ -2086,15 +2029,6 @@ Rules:
                 )}
               </div>
 
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                <div className="flex items-start gap-3">
-                  <span className="text-xl">🎓</span>
-                  <div>
-                    <div className="text-sm font-bold text-amber-800">Your personalized study plan is ready to build</div>
-                    <div className="text-xs text-amber-700 mt-0.5">We'll prioritize exams by grade impact, schedule study sessions around your free time, and tie your plan directly to your study guides.</div>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
         </div>
