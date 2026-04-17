@@ -1999,12 +1999,7 @@ Rules:
                       {calParsing ? '⏳ Importing your calendar…' : '📅 Upload .ics file'}
                     </button>
                     {calStatus === 'error' && <p className="text-xs text-red-500 mt-1.5">Could not read file — make sure it's a valid .ics export.</p>}
-                    <p className="text-xs text-gray-400 mt-2">Only upload a <span className="font-semibold text-gray-500">public calendar</span> that contains your college class schedule and exam dates. Do not upload your personal or private calendar.</p>
-                    <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
-                      <p className="text-xs font-semibold text-gray-600">How to make your calendar public and export it:</p>
-                      <p className="text-xs text-gray-500"><span className="font-semibold text-gray-600">Google Calendar:</span> Settings → pick your calendar → Access permissions → check "Make available to public" → copy the .ics link and download the file.</p>
-                      <p className="text-xs text-gray-500"><span className="font-semibold text-gray-600">Apple Calendar:</span> Open Calendar → click the info icon next to your calendar → enable "Public Calendar" → copy the link, open it in a browser, and download the .ics file.</p>
-                    </div>
+                    <p className="text-xs text-gray-400 mt-2">Please do not upload a calendar that has personal or sensitive information in it.</p>
                   </div>
                 ) : (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
