@@ -1633,6 +1633,7 @@ Rules: finalDate is end-of-semester final only; topics are 5-15 main modules; de
   }
 
   const course = courses.find(c => c.id === selected.id);
+  if (!course) { setSelected(null); return null; }
   const d = daysUntil(course.finalDate);
   const profileTarget = parseGoalPct(profile?.gradeGoal);
   const activeTarget = course.courseGoal ?? profileTarget;
@@ -1734,7 +1735,7 @@ Rules: finalDate is end-of-semester final only; topics are 5-15 main modules; de
           `What are the highest-priority topics for the final given I have ${d} days?`,
           `Connect the key themes across the whole semester for ${course.name}`,
           `I currently have ${course.currentGrade}% — what do I need to focus on to get a B?`,
-          `Quiz me on ${course.topics.find(t=>!t.studied)?.name || course.topics[0].name}`,
+          ...(course.topics.length > 0 ? [`Quiz me on ${course.topics.find(t=>!t.studied)?.name || course.topics[0]?.name || course.name}`] : [`What topics should I study for ${course.name}?`]),
           `What questions are most likely to appear on a cumulative final for ${course.name}?`
         ]} />
     </div>
