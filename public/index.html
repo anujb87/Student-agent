@@ -567,7 +567,7 @@ function ApiKeyScreen({ onSubmit }) {
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ courses, setCourses, onNavigate, profile, sgLecturesByC }) {
+function Dashboard({ courses, setCourses, onNavigate, profile, setProfile, sgLecturesByC, onGoToCourseSetup }) {
   const [showAddCourse, setShowAddCourse] = useState(false);
   const [newCourse, setNewCourse] = useState({ name:'', professor:'', finalDate:'', currentGrade:'', finalWeight:'' });
   const [icsEvents, setIcsEvents] = useState([]);
@@ -577,6 +577,55 @@ function Dashboard({ courses, setCourses, onNavigate, profile, sgLecturesByC }) 
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [newEvent, setNewEvent] = useState({ title:'', date:'', time:'' });
   const icsRef = useRef(null);
+  // Study prefs modal
+  const [showStudyPrefsModal, setShowStudyPrefsModal] = useState(false);
+  const [modalHours, setModalHours] = useState(profile?.studyHours || '4-5');
+  const [modalGoal, setModalGoal] = useState(profile?.gradeGoal || 'B (83%)');
+  const [modalCalEvents, setModalCalEvents] = useState([]);
+  const [modalFreeBlocks, setModalFreeBlocks] = useState([]);
+  const [modalCalStatus, setModalCalStatus] = useState(null);
+  const [modalCalParsing, setModalCalParsing] = useState(false);
+  const modalCalRef = useRef(null);
+
+  const openStudyPrefsModal = () => {
+    setModalHours(profile?.studyHours || '4-5');
+    setModalGoal(profile?.gradeGoal || 'B (83%)');
+    setModalCalEvents(profile?.calendarEvents || []);
+    setModalFreeBlocks(profile?.freeBlocks || []);
+    setModalCalStatus(profile?.calendarEvents?.length > 0 ? 'success' : null);
+    setShowStudyPrefsModal(true);
+  };
+
+  const saveStudyPrefs = () => {
+    const lastFinal = courses.reduce((max, c) => {
+      if (!c.finalDate) return max;
+      const d = new Date(c.finalDate + 'T12:00:00');
+      return d > max ? d : max;
+    }, new Date(TODAY));
+    const blocks = modalCalEvents.length > 0 ? findFreeBlocks(modalCalEvents, TODAY, lastFinal) : modalFreeBlocks;
+    const newProfile = { ...(profile || {}), studyHours: modalHours, gradeGoal: modalGoal, calendarEvents: modalCalEvents, freeBlocks: blocks };
+    if (setProfile) setProfile(newProfile);
+    setShowStudyPrefsModal(false);
+  };
+
+  const handleModalCalUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setModalCalParsing(true);
+    setModalCalStatus(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const events = parseICS(ev.target.result);
+        if (events.length === 0) throw new Error('No events found');
+        setModalCalEvents(events);
+        setModalCalStatus('success');
+      } catch (_) { setModalCalStatus('error'); }
+      setModalCalParsing(false);
+      if (modalCalRef.current) modalCalRef.current.value = '';
+    };
+    reader.readAsText(file);
+  };
 
   // ICS file parser
   const parseICS = (text) => {
@@ -616,7 +665,7 @@ function Dashboard({ courses, setCourses, onNavigate, profile, sgLecturesByC }) 
   });
 
   // Study day plan — simple heuristic: allocate more days to higher-priority courses
-  const firstFinal = daysUntil(ranked.reduce((a, c) => daysUntil(c.finalDate) < daysUntil(a.finalDate) ? c : a, courses[0]).finalDate);
+  const firstFinal = ranked.length > 0 ? daysUntil(ranked.reduce((a, c) => daysUntil(c.finalDate) < daysUntil(a.finalDate) ? c : a, ranked[0]).finalDate) : 0;
 
 
   // Grade needed on final — uses per-course override if set, else profile's overall goal
@@ -660,6 +709,82 @@ function Dashboard({ courses, setCourses, onNavigate, profile, sgLecturesByC }) 
 
   return (
     <div className="fade-in">
+
+      {/* ── Study Prefs Modal ─────────────────────────────────────────────────── */}
+      {showStudyPrefsModal && (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24}}>
+          <div className="card p-6 fade-in" style={{maxWidth:480, width:'100%', maxHeight:'90vh', overflowY:'auto'}}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 style={{fontSize:17, fontWeight:800, color:'#111827', margin:0, letterSpacing:'-0.2px'}}>How do you want to study?</h3>
+                <p style={{fontSize:13, color:'#9CA3AF', margin:'3px 0 0'}}>Two quick choices and an optional calendar sync.</p>
+              </div>
+              <button onClick={() => setShowStudyPrefsModal(false)} style={{background:'none',border:'none',fontSize:18,cursor:'pointer',color:'#9CA3AF',lineHeight:1}}>✕</button>
+            </div>
+
+            {/* Hours */}
+            <div className="mb-5">
+              <label style={{fontSize:13, fontWeight:700, color:'#302C41', display:'block', marginBottom:8}}>How many hours per day do you plan to study?</label>
+              <div style={{display:'flex', flexWrap:'wrap', gap:8}}>
+                {[['1-2','1–2 hrs'],['2-3','2–3 hrs'],['3-5','3–5 hrs'],['4-5','4–5 hrs'],['5+','5+ hrs']].map(([val, label]) => (
+                  <button key={val} onClick={() => setModalHours(val)}
+                    style={{padding:'8px 16px', borderRadius:12, border: modalHours===val ? '2px solid #EB7100' : '2px solid #E5E7EB',
+                      background: modalHours===val ? '#FFF3E8' : 'white', color: modalHours===val ? '#C55E00' : '#6B7280',
+                      fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all 0.12s'}}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Grade goal */}
+            <div className="mb-5">
+              <label style={{fontSize:13, fontWeight:700, color:'#302C41', display:'block', marginBottom:8}}>What's your grade goal this semester?</label>
+              <div style={{display:'flex', flexWrap:'wrap', gap:8}}>
+                {[['A (93%)','A (93%+)'],['A- (90%)','A– (90%+)'],['B+ (87%)','B+ (87%+)'],['B (83%)','B (83%+)'],['B- (80%)','B– (80%+)'],['C (73%)','C (73%+)']].map(([val, label]) => (
+                  <button key={val} onClick={() => setModalGoal(val)}
+                    style={{padding:'8px 16px', borderRadius:12, border: modalGoal===val ? '2px solid #EB7100' : '2px solid #E5E7EB',
+                      background: modalGoal===val ? '#FFF3E8' : 'white', color: modalGoal===val ? '#C55E00' : '#6B7280',
+                      fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all 0.12s'}}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Calendar sync */}
+            <div className="mb-6">
+              <label style={{fontSize:13, fontWeight:700, color:'#302C41', display:'block', marginBottom:3}}>Sync your Google or Apple Calendar</label>
+              <p style={{fontSize:12, color:'#9CA3AF', margin:'0 0 10px'}}>We'll find your free time slots and build your study schedule around them.</p>
+              <input ref={modalCalRef} type="file" accept=".ics" style={{display:'none'}} onChange={handleModalCalUpload} />
+              {modalCalStatus !== 'success' ? (
+                <div>
+                  <button onClick={() => modalCalRef.current?.click()} disabled={modalCalParsing}
+                    style={{width:'100%', padding:'11px', borderRadius:12, border:'2px dashed #D1D5DB',
+                      background:'#F9FAFB', fontSize:13, color:'#6B7280', cursor:'pointer', fontWeight:500, fontFamily:'inherit',
+                      display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all 0.12s', opacity: modalCalParsing ? 0.6 : 1}}>
+                    {modalCalParsing ? '⏳ Importing calendar…' : '📅 Upload .ics file'}
+                  </button>
+                  {modalCalStatus === 'error' && <p style={{fontSize:11, color:'#EF4444', margin:'6px 0 0'}}>Could not read file — make sure it's a valid .ics export.</p>}
+                  <p style={{fontSize:11, color:'#9CA3AF', margin:'6px 0 0'}}>Please do not upload a calendar that has personal or sensitive information in it.</p>
+                </div>
+              ) : (
+                <div style={{background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:12, padding:'10px 14px', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+                  <span style={{fontSize:12, fontWeight:600, color:'#166534'}}>✅ {modalCalEvents.length} events loaded</span>
+                  <button onClick={() => { setModalCalEvents([]); setModalCalStatus(null); }}
+                    style={{fontSize:11, color:'#9CA3AF', background:'none', border:'none', cursor:'pointer'}}>Remove</button>
+                </div>
+              )}
+            </div>
+
+            <div style={{display:'flex', gap:10}}>
+              <button onClick={() => setShowStudyPrefsModal(false)} className="btn-secondary flex-1 text-sm">Cancel</button>
+              <button onClick={saveStudyPrefs} className="btn-primary flex-1 text-sm">Save preferences</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Course Modal */}
       {showAddCourse && (
         <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:24}}>
@@ -713,12 +838,76 @@ function Dashboard({ courses, setCourses, onNavigate, profile, sgLecturesByC }) 
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Finals Command Center 🎓</h1>
-          <p className="text-gray-500 text-sm">April 21, 2026 · {profile?.university || 'University'} · {profile?.year || 'Student'} · First final in {firstFinal} days</p>
+          <p className="text-gray-500 text-sm">
+            {courses.length > 0 ? `${firstFinal} days to first final` : 'Add your courses to get started'}
+          </p>
         </div>
         <button onClick={() => setShowAddCourse(true)} className="btn-secondary text-sm flex items-center gap-1.5">
           + Add Course
         </button>
       </div>
+
+      {/* Empty courses state */}
+      {courses.length === 0 && (
+        <div style={{display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'50vh', textAlign:'center', gap:20}}>
+          <div style={{width:72, height:72, borderRadius:24, background:'linear-gradient(135deg,#FFF3E8,#FFE8CC)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:32}}>📚</div>
+          <div>
+            <h2 style={{fontSize:20, fontWeight:800, color:'#302C41', margin:'0 0 8px', letterSpacing:'-0.3px'}}>Add your first course</h2>
+            <p style={{fontSize:14, color:'#9991BF', margin:0, lineHeight:1.6, maxWidth:340}}>Finals Coach needs to know which exams you're preparing for before it can build your study schedule.</p>
+          </div>
+          <button onClick={onGoToCourseSetup}
+            style={{background:'#EB7100', color:'white', border:'none', borderRadius:100, padding:'12px 28px', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit', boxShadow:'0 4px 14px rgba(235,113,0,0.3)'}}>
+            Add your courses →
+          </button>
+          <button onClick={() => setShowAddCourse(true)}
+            style={{background:'none', border:'none', color:'#9991BF', fontSize:13, cursor:'pointer', textDecoration:'underline', padding:0, fontFamily:'inherit'}}>
+            or add a single course manually
+          </button>
+        </div>
+      )}
+
+      {courses.length > 0 && (<>
+
+      {/* Upload study material CTA banner — shown when no course has a guide yet */}
+      {!anyHasGuide && (
+        <div style={{
+          background: 'linear-gradient(135deg, #1E2130 0%, #2E2448 100%)',
+          borderRadius: 14,
+          padding: '20px 24px',
+          marginBottom: 20,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 20,
+          borderLeft: '4px solid #EB7100',
+          boxShadow: '0 4px 16px rgba(48,44,65,0.14)'
+        }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: 12,
+            background: '#EB7100',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, flexShrink: 0
+          }}>📂</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', marginBottom: 3 }}>
+              Upload study material
+            </div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.60)', lineHeight: 1.4 }}>
+              Upload all your study materials to generate a personalized Study Guide for each course.
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigate('finals', courses[0])}
+            style={{
+              background: '#EB7100', color: '#FFFFFF',
+              border: 'none', borderRadius: 100,
+              padding: '10px 22px', fontSize: 13, fontWeight: 700,
+              cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+              fontFamily: 'inherit'
+            }}>
+            Upload now
+          </button>
+        </div>
+      )}
 
       {/* Two-column layout */}
       <div style={{display:'grid', gridTemplateColumns:'1fr 360px', gap:20, alignItems:'start'}}>
@@ -768,11 +957,14 @@ function Dashboard({ courses, setCourses, onNavigate, profile, sgLecturesByC }) 
                   </div>
                 )}
                 {showUploadCTA && (
-                  <div style={{marginTop:8, display:'flex'}}>
+                  <div style={{marginTop:10, paddingTop:10, borderTop:'1px solid #EDEAF4', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12}}>
+                    <span style={{fontSize:12, color:'#302C41', fontWeight:600, lineHeight:1.4}}>
+                      Upload study materials to generate your Study Guide
+                    </span>
                     <button onClick={() => onNavigate('finals', c)}
-                      style={{padding:'5px 12px', borderRadius:6, background:'#FFF3E8',
-                        color:'#EB7100', border:'1px solid #FFBC80', fontSize:11, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap'}}>
-                      📂 Upload Study Materials →
+                      style={{padding:'6px 14px', borderRadius:100, background:'#EB7100',
+                        color:'#FFFFFF', border:'none', fontSize:11, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', fontFamily:'inherit', flexShrink:0}}>
+                      Upload now
                     </button>
                   </div>
                 )}
@@ -922,6 +1114,7 @@ function Dashboard({ courses, setCourses, onNavigate, profile, sgLecturesByC }) 
           : null;
 
         const DOT_COLORS = {study:'#EB7100', ics:'#6366F1', manual:'#6366F1', exam:'#EF4444'};
+        const hasStudyPrefs = !!profile?.studyHours;
 
         return (
           <div className="card p-5">
@@ -929,12 +1122,14 @@ function Dashboard({ courses, setCourses, onNavigate, profile, sgLecturesByC }) 
             <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14}}>
               <h3 style={{fontWeight:700, fontSize:14, color:'#302C41', margin:0}}>📅 Study Calendar</h3>
               <div style={{display:'flex', alignItems:'center', gap:6}}>
-                <label style={{fontSize:11, fontWeight:600, color:'#9991BF', cursor:'pointer',
-                  border:'1px solid #EDEAF4', borderRadius:8, padding:'4px 10px', whiteSpace:'nowrap'}}>
-                  ↑ Import .ics
-                  <input type="file" accept=".ics" style={{display:'none'}} onChange={handleICSImport} />
-                </label>
-                {hasCal && (
+                {hasStudyPrefs && (
+                  <label style={{fontSize:11, fontWeight:600, color:'#9991BF', cursor:'pointer',
+                    border:'1px solid #EDEAF4', borderRadius:8, padding:'4px 10px', whiteSpace:'nowrap'}}>
+                    ↑ Import .ics
+                    <input type="file" accept=".ics" style={{display:'none'}} onChange={handleICSImport} />
+                  </label>
+                )}
+                {hasCal && hasStudyPrefs && (
                   <button onClick={() => exportPlanToICS(calPlan)}
                     style={{fontSize:11, fontWeight:600, background:'#EB7100', color:'white',
                       border:'none', borderRadius:8, padding:'4px 10px', cursor:'pointer', whiteSpace:'nowrap'}}>
@@ -944,8 +1139,21 @@ function Dashboard({ courses, setCourses, onNavigate, profile, sgLecturesByC }) 
               </div>
             </div>
 
+            {/* Create study schedule CTA (no prefs set yet) */}
+            {!hasStudyPrefs && (
+              <div style={{borderRadius:12, background:'linear-gradient(135deg,#F7F6FA,#EDEAF4)', border:'1.5px dashed #D5D1E6', padding:'22px 18px', textAlign:'center', marginBottom:14}}>
+                <div style={{fontSize:22, marginBottom:6}}>🗓️</div>
+                <div style={{fontSize:13, fontWeight:700, color:'#302C41', marginBottom:4}}>Create your study schedule</div>
+                <div style={{fontSize:12, color:'#9991BF', lineHeight:1.5, marginBottom:12}}>Add your study preferences to generate a personalized day-by-day plan.</div>
+                <button onClick={openStudyPrefsModal}
+                  style={{background:'#EB7100', color:'white', border:'none', borderRadius:100, padding:'8px 20px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit'}}>
+                  Add details
+                </button>
+              </div>
+            )}
+
             {/* ── Upcoming study sessions strip (next 3 days with sessions) ── */}
-            {(() => {
+            {hasStudyPrefs && (() => {
               const toDateStrC = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
               const nextStrip = [];
               for (let i = 0; i < 7 && nextStrip.length < 3; i++) {
@@ -1001,6 +1209,7 @@ function Dashboard({ courses, setCourses, onNavigate, profile, sgLecturesByC }) 
             })()}
 
             {/* Month navigation */}
+
             <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10}}>
               <button onClick={() => setMonthOffset(m=>m-1)}
                 style={{background:'none', border:'none', cursor:'pointer', fontSize:16, color:'#9991BF', padding:'2px 6px', lineHeight:1}}>‹</button>
@@ -1161,6 +1370,7 @@ function Dashboard({ courses, setCourses, onNavigate, profile, sgLecturesByC }) 
       })()}
 
       </div>{/* end 2-col grid */}
+      </>)}
     </div>
   );
 }
@@ -1598,92 +1808,79 @@ function CourseCardOnboarding({ c, idx, loaded, isUploading, sStatus, onUpdate, 
   );
 }
 
-// ─── ONBOARDING WIZARD ───────────────────────────────────────────────────────
+// ─── LANDING PAGE + COURSE SETUP ─────────────────────────────────────────────
 const COURSE_EMOJIS = ['📚','⚖️','💻','📊','🔬','🎨','📝','🌍','🧮','💡'];
 const COURSE_COLORS = ['from-indigo-500 to-indigo-600','from-red-500 to-red-600','from-emerald-500 to-emerald-600','from-purple-500 to-purple-600','from-blue-500 to-blue-600','from-orange-500 to-orange-600'];
 
-function OnboardingWizard({ onComplete, apiKey }) {
-  const [step, setStep] = useState(1);
-  const TOTAL = 3;
-  const [name, setName] = useState('');
-  const [university, setUniversity] = useState('');
-  const [year, setYear] = useState('');
-  const [major, setMajor] = useState('');
-  const [minor, setMinor] = useState('');
-  const [courses, setCourses] = useState([{ id: 1, name: '', professor: '', finalDate: '', currentGrade: '', finalWeight: '', topics: '' }]);
-  const [studyStyle, setStudyStyle] = useState([]);
-  const [studyTools, setStudyTools] = useState([]);
-  const [studyHours, setStudyHours] = useState('4-5');
-  const [gradeGoal, setGradeGoal] = useState('B (83%)');
-  const [extracting, setExtracting] = useState(false);
-  const [extractStatus, setExtractStatus] = useState(null); // null | 'success' | 'error'
-  const [extractMsg, setExtractMsg] = useState('');
-  const fileInputRef = useRef(null);
-  // Syllabus upload per course
-  const [syllabusUploading, setSyllabusUploading] = useState(null); // courseId being uploaded
-  const [syllabusStatus, setSyllabusStatus] = useState({}); // { courseId: 'success'|'error' }
+function LandingPage({ onGetStarted }) {
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e1b4b 0%, #4f46e5 50%, #7c3aed 100%)' }} className="flex items-center justify-center p-6">
+      <div className="card w-full fade-in" style={{ maxWidth: 480 }}>
+        <div style={{ padding: '40px 36px 28px', textAlign: 'center', borderBottom: '1px solid #F3F4F6' }}>
+          <div style={{ width: 64, height: 64, borderRadius: 20, background: 'linear-gradient(135deg, #EB7100, #F59E0B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, margin: '0 auto 18px' }}>🎓</div>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#111827', margin: '0 0 10px', letterSpacing: '-0.5px' }}>Meet Finals Coach</h1>
+          <p style={{ fontSize: 15, color: '#6B7280', margin: 0, lineHeight: 1.6 }}>Your AI-powered study partner for finals season — built right inside Chegg.</p>
+        </div>
+        <div style={{ padding: '24px 36px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {[
+            { icon: '📅', title: 'Personalized study schedule', desc: 'We rank your exams by grade impact and build a day-by-day plan around your free time.' },
+            { icon: '📖', title: 'AI study guides per course', desc: 'Upload your notes and Finals Coach generates a focused guide covering every topic on your final.' },
+            { icon: '🎯', title: 'Grade gap analysis', desc: 'See exactly what score you need on each final to hit your semester goal — no guessing.' },
+            { icon: '📝', title: 'Practice quizzes on demand', desc: 'Test yourself on any topic, get instant feedback, and track what you\'ve mastered.' },
+          ].map(({ icon, title, desc }) => (
+            <div key={title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{icon}</div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 2 }}>{title}</div>
+                <div style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5 }}>{desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '0 36px 32px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <button onClick={onGetStarted}
+            style={{ width: '100%', padding: '14px', borderRadius: 14, background: 'linear-gradient(135deg, #EB7100, #F59E0B)', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif', boxShadow: '0 4px 14px rgba(235,113,0,0.35)' }}>
+            Get started 🚀
+          </button>
+          <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', margin: 0 }}>Takes under 2 minutes to set up</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CourseSetupPage({ apiKey, initialCourses, onComplete }) {
+  const [courses, setCourses] = useState(
+    initialCourses && initialCourses.length > 0
+      ? initialCourses
+      : [{ id: 1, name: '', professor: '', finalDate: '', currentGrade: '', finalWeight: '', topics: '' }]
+  );
+  const [syllabusUploading, setSyllabusUploading] = useState(null);
+  const [syllabusStatus, setSyllabusStatus] = useState({});
   const syllabusRef = useRef(null);
   const [syllabusTargetId, setSyllabusTargetId] = useState(null);
-  // Calendar sync
-  const [calEvents, setCalEvents] = useState([]);
-  const [freeBlocks, setFreeBlocks] = useState([]);
-  const [calStatus, setCalStatus] = useState(null); // null | 'success' | 'error'
-  const [calParsing, setCalParsing] = useState(false);
-  const calRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setExtracting(true);
-    setExtractStatus(null);
-    setExtractMsg('');
-    try {
-      const readFile = () => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        if (file.type === 'text/plain') {
-          reader.readAsText(file);
-          reader.onload = () => resolve({ type: 'text', content: reader.result });
-        } else {
-          reader.readAsDataURL(file);
-          reader.onload = () => resolve({ type: 'binary', content: reader.result.split(',')[1], mediaType: file.type });
-        }
-        reader.onerror = reject;
-      });
+  const addCourse = () => setCourses(p => [...p, { id: Date.now(), name: '', professor: '', finalDate: '', currentGrade: '', finalWeight: '', topics: '' }]);
+  const removeCourse = (id) => setCourses(p => p.filter(c => c.id !== id));
+  const updateCourse = (id, field, val) => setCourses(p => p.map(c => c.id === id ? { ...c, [field]: val } : c));
 
-      const fileData = await readFile();
-      const sys = 'You extract course information from academic documents. Return ONLY a valid JSON array, no markdown, no extra text.';
-      let messages;
-
-      if (fileData.type === 'text') {
-        messages = [{ role: 'user', content: `Extract all courses from this schedule/document. Return a JSON array: [{"name":"Course Name","professor":"Prof Name or null","examDate":"YYYY-MM-DD or null","topics":"topic1, topic2 or null"}]\n\nDocument:\n${fileData.content}` }];
-      } else if (fileData.mediaType === 'application/pdf') {
-        messages = [{ role: 'user', content: [
-          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileData.content } },
-          { type: 'text', text: 'Extract all courses/classes from this document. Return ONLY a JSON array: [{"name":"Course Name","professor":"Prof Name or null","examDate":"YYYY-MM-DD or null","topics":"topic1, topic2 or null"}]. If exam dates are not found, use null.' }
-        ]}];
-      } else if (fileData.mediaType.startsWith('image/')) {
-        messages = [{ role: 'user', content: [
-          { type: 'image', source: { type: 'base64', media_type: fileData.mediaType, data: fileData.content } },
-          { type: 'text', text: 'Extract all courses/classes visible in this screenshot or image. Return ONLY a JSON array: [{"name":"Course Name","professor":"Prof Name or null","examDate":"YYYY-MM-DD or null","topics":"topic1, topic2 or null"}]. If exam dates are not visible, use null.' }
-        ]}];
-      } else {
-        throw new Error('Unsupported file type. Please upload a PDF, image, or text file.');
-      }
-
-      const reply = await callClaude(apiKey, sys, messages);
-      const clean = reply.replace(/```json\n?|\n?```/g, '').replace(/```\n?|\n?```/g, '').trim();
-      const extracted = JSON.parse(clean);
-      if (!Array.isArray(extracted) || extracted.length === 0) throw new Error('No courses found in document.');
-      setCourses(extracted.map((c, i) => ({ id: i + 1, name: c.name || '', professor: c.professor || '', examDate: c.examDate || '', topics: c.topics || '' })));
-      setExtractStatus('success');
-      setExtractMsg(`✅ Found ${extracted.length} course${extracted.length > 1 ? 's' : ''}! Review and edit below.`);
-    } catch (err) {
-      setExtractStatus('error');
-      setExtractMsg(`⚠️ ${err.message || 'Could not extract courses. Try a different file or add manually.'}`);
-    }
-    setExtracting(false);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
+  const buildCourses = () => courses.filter(c => c.name.trim()).map((c, i) => ({
+    id: `user_${Date.now()}_${i}`,
+    name: c.name.trim(), code: '', professor: (c.professor || '').trim(),
+    finalDate: c.finalDate || null,
+    currentGrade: parseInt(c.currentGrade) || 80,
+    finalWeight: parseInt(c.finalWeight) || 30,
+    officeHours: c.officeHours || '',
+    gradingBreakdown: c.gradingBreakdown || [],
+    quizDates: c.quizDates || [],
+    assignments: c.assignments || [],
+    emoji: COURSE_EMOJIS[i % COURSE_EMOJIS.length],
+    color: COURSE_COLORS[i % COURSE_COLORS.length],
+    topics: c.topics && c.topics.trim()
+      ? c.topics.split(',').map((t, j) => ({ id: j+1, name: t.trim(), studied: false, mastery: 0 }))
+      : [],
+  }));
 
   const handleSyllabusUpload = async (e, courseId) => {
     const file = e.target.files[0];
@@ -1693,48 +1890,37 @@ function OnboardingWizard({ onComplete, apiKey }) {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       try {
-        const isText  = file.type === 'text/plain';
+        const isText = file.type === 'text/plain';
         const isImage = file.type.startsWith('image/');
-        const base64  = isText ? null : ev.target.result.split(',')[1];
+        const base64 = isText ? null : ev.target.result.split(',')[1];
         let content;
-        if (isText)       content = ev.target.result;
-        else if (isImage) content = [{ type: 'image',    source: { type: 'base64', media_type: file.type, data: base64 } },
-                                     { type: 'text',     text: 'Extract the course schedule information from this syllabus image.' }];
-        else              content = [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-                                     { type: 'text',     text: 'Extract the course schedule information from this syllabus PDF.' }];
+        if (isText) content = ev.target.result;
+        else if (isImage) content = [{ type: 'image', source: { type: 'base64', media_type: file.type, data: base64 } }, { type: 'text', text: 'Extract the course schedule information from this syllabus image.' }];
+        else content = [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: 'Extract the course schedule information from this syllabus PDF.' }];
 
-        const sys = `You are extracting structured information from a university course syllabus. Return ONLY a valid JSON object with this exact structure, no markdown, no code fences, no extra text:
-{"courseName":"full course name or empty string","professor":"professor name or empty string","finalDate":"YYYY-MM-DD — the CUMULATIVE FINAL EXAM at end of semester (NOT a midterm), or empty string","finalWeight":25,"quizDates":["YYYY-MM-DD"],"assignmentDeadlines":[{"name":"string","date":"YYYY-MM-DD"}],"gradingBreakdown":[{"component":"string","weight":"string"}],"officeHours":"office hours as a string or empty string","topics":["topic 1","topic 2"]}
-Rules:
-- finalDate must be the END-OF-SEMESTER final exam only, not a midterm or quiz
-- finalWeight is an integer: the percentage the final exam contributes to the total course grade (e.g. 25 for 25%)
-- topics should be the main course modules or chapters (5–15 items), not week-by-week lecture titles
-- For dates, use the year from the syllabus; default to 2026 if ambiguous
-- Return empty string for missing text fields, null for missing numbers, empty array for missing arrays`;
+        const sys = `You are extracting structured information from a university course syllabus. Return ONLY a valid JSON object, no markdown, no code fences:
+{"courseName":"","professor":"","finalDate":"YYYY-MM-DD or empty","finalWeight":25,"gradingBreakdown":[{"component":"string","weight":"string"}],"officeHours":"","topics":["topic 1","topic 2"]}`;
         const msgs = [{ role: 'user', content: isText
-          ? `${content}\n\nExtract the course information from this syllabus and return the JSON object.`
-          : [...content.slice(0, -1), { type: 'text', text: 'Extract the course information from this syllabus and return the JSON object.' }] }];
+          ? `${content}\n\nExtract the course information and return the JSON object.`
+          : [...(Array.isArray(content) ? content.slice(0,-1) : []), { type: 'text', text: 'Extract the course information and return the JSON object.' }] }];
         const reply = await callClaude(apiKey, sys, msgs);
         const clean = reply.replace(/```json\n?|\n?```/g, '').replace(/```\n?/g, '').trim();
-        const data  = JSON.parse(clean);
-        // Merge extracted data back into the course — only overwrite if extracted value is non-empty
+        const data = JSON.parse(clean);
         setCourses(prev => prev.map(c => {
           if (c.id !== courseId) return c;
           return {
             ...c,
-            name:             data.courseName?.trim()   || c.name,
-            professor:        data.professor?.trim()    || c.professor,
-            finalDate:        data.finalDate            || c.finalDate   || '',
-            finalWeight:      data.finalWeight != null  ? String(data.finalWeight) : c.finalWeight,
-            quizDates:        data.quizDates?.length    ? data.quizDates   : (c.quizDates   || []),
-            assignments:      data.assignmentDeadlines?.length ? data.assignmentDeadlines : (c.assignments || []),
-            gradingBreakdown: data.gradingBreakdown?.length    ? data.gradingBreakdown    : (c.gradingBreakdown || []),
-            officeHours:      data.officeHours          || c.officeHours || '',
-            topics:           data.topics?.length       ? data.topics.join(', ') : c.topics,
+            name: data.courseName?.trim() || c.name,
+            professor: data.professor?.trim() || c.professor,
+            finalDate: data.finalDate || c.finalDate || '',
+            finalWeight: data.finalWeight != null ? String(data.finalWeight) : c.finalWeight,
+            gradingBreakdown: data.gradingBreakdown?.length ? data.gradingBreakdown : (c.gradingBreakdown || []),
+            officeHours: data.officeHours || c.officeHours || '',
+            topics: data.topics?.length ? data.topics.join(', ') : c.topics,
           };
         }));
         setSyllabusStatus(p => ({ ...p, [courseId]: 'success' }));
-      } catch (err) {
+      } catch (_) {
         setSyllabusStatus(p => ({ ...p, [courseId]: 'error' }));
       }
       setSyllabusUploading(null);
@@ -1744,304 +1930,98 @@ Rules:
     else reader.readAsDataURL(file);
   };
 
-
-  const handleCalUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setCalParsing(true);
-    setCalStatus(null);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const events = parseICS(ev.target.result);
-        if (events.length === 0) throw new Error('No events found');
-        const lastFinal = courses.reduce((max, c) => {
-          if (!c.finalDate) return max;
-          const d = new Date(c.finalDate + 'T12:00:00');
-          return d > max ? d : max;
-        }, new Date(TODAY));
-        const blocks = findFreeBlocks(events, TODAY, lastFinal);
-        setCalEvents(events);
-        setFreeBlocks(blocks);
-        setCalStatus('success');
-      } catch (_) {
-        setCalStatus('error');
-      }
-      setCalParsing(false);
-      if (calRef.current) calRef.current.value = '';
-    };
-    reader.readAsText(file);
-  };
-
-  const addCourse = () => setCourses(p => [...p, { id: Date.now(), name: '', professor: '', finalDate: '', currentGrade: '', finalWeight: '', topics: '' }]);
-  const removeCourse = (id) => setCourses(p => p.filter(c => c.id !== id));
-  const updateCourse = (id, field, val) => setCourses(p => p.map(c => c.id === id ? { ...c, [field]: val } : c));
-  const toggleArr = (arr, setArr, val) => setArr(p => p.includes(val) ? p.filter(x => x !== val) : [...p, val]);
-
-  const finish = () => {
-    const profile = { name: name.trim() || 'Student', university: university.trim() || 'University', year, major: major.trim(), minor: minor.trim(), studyStyle, studyTools, studyHours, gradeGoal, calendarEvents: calEvents, freeBlocks };
-    const builtCourses = courses.filter(c => c.name.trim()).map((c, i) => ({
-      id: `user_${i}`, name: c.name.trim(), code: '', professor: c.professor.trim(),
-      finalDate: c.finalDate || null,
-      currentGrade: parseInt(c.currentGrade) || 80,
-      finalWeight: parseInt(c.finalWeight) || 30,
-      officeHours: c.officeHours || '',
-      gradingBreakdown: c.gradingBreakdown || [],
-      quizDates: c.quizDates || [],
-      assignments: c.assignments || [],
-      emoji: COURSE_EMOJIS[i % COURSE_EMOJIS.length], color: COURSE_COLORS[i % COURSE_COLORS.length],
-      topics: c.topics.trim() ? c.topics.split(',').map((t, j) => ({ id: j+1, name: t.trim(), studied: false, mastery: 0 })) : [],
-    }));
-    onComplete(profile, builtCourses.length > 0 ? builtCourses : null);
-  };
-
-  const step1Valid = name.trim() && university.trim() && year && major.trim();
-  const step2Valid = courses.some(c => c.name.trim());
-  const canContinue = step === 1 ? step1Valid : step === 2 ? step2Valid : true;
-  const pct = ((step - 1) / TOTAL) * 100;
-
-  const HEADLINES = [
-    'First, a bit about you.',
-    'Which exams are you preparing for?',
-    'Almost done — how do you want to study?',
-  ];
-  const SUBTITLES = [
-    'This personalizes your dashboard and helps us tailor recommendations to your year and major.',
-    'We\'ll rank your exams by grade impact and build your study schedule around what matters most.',
-    'Two quick choices and an optional calendar sync — and your personalized study schedule is ready.',
-  ];
-
-  // Landing page state (step 0)
-  const [showLanding, setShowLanding] = useState(true);
-
-  if (showLanding) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e1b4b 0%, #4f46e5 50%, #7c3aed 100%)' }} className="flex items-center justify-center p-6">
-        <div className="card w-full fade-in" style={{ maxWidth: 480 }}>
-          {/* Hero */}
-          <div style={{ padding: '40px 36px 28px', textAlign: 'center', borderBottom: '1px solid #F3F4F6' }}>
-            <div style={{ width: 64, height: 64, borderRadius: 20, background: 'linear-gradient(135deg, #EB7100, #F59E0B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, margin: '0 auto 18px' }}>🎓</div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: '#111827', margin: '0 0 10px', letterSpacing: '-0.5px' }}>Meet Finals Coach</h1>
-            <p style={{ fontSize: 15, color: '#6B7280', margin: 0, lineHeight: 1.6 }}>Your AI-powered study partner for finals season — built right inside Chegg.</p>
-          </div>
-
-          {/* Value props */}
-          <div style={{ padding: '24px 36px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {[
-              { icon: '📅', title: 'Personalized study schedule', desc: 'We rank your exams by grade impact and build a day-by-day plan around your free time.' },
-              { icon: '📖', title: 'AI study guides per course', desc: 'Upload your syllabus and Finals Coach generates a focused guide covering every topic on your final.' },
-              { icon: '🎯', title: 'Grade gap analysis', desc: 'See exactly what score you need on each final to hit your semester goal — no guessing.' },
-              { icon: '📝', title: 'Practice quizzes on demand', desc: 'Test yourself on any topic, get instant feedback, and track what you\'ve mastered.' },
-            ].map(({ icon, title, desc }) => (
-              <div key={title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <div style={{ width: 38, height: 38, borderRadius: 12, background: '#FFF3E8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{icon}</div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 2 }}>{title}</div>
-                  <div style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5 }}>{desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* CTA */}
-          <div style={{ padding: '0 36px 32px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button onClick={() => setShowLanding(false)}
-              style={{ width: '100%', padding: '14px', borderRadius: 14, background: 'linear-gradient(135deg, #EB7100, #F59E0B)', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif', boxShadow: '0 4px 14px rgba(235,113,0,0.35)' }}>
-              Get started 🚀
-            </button>
-            <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', margin: 0 }}>Takes under 2 minutes to set up</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const hasValidCourse = courses.some(c => c.name.trim());
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e1b4b 0%, #4f46e5 50%, #7c3aed 100%)' }} className="flex items-center justify-center p-6">
-      <div className="card w-full fade-in" style={{ maxWidth: 540 }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e1b4b 0%, #4f46e5 50%, #7c3aed 100%)' }} className="flex justify-center p-6 scrollable" style={{ overflowY: 'auto' }}>
+      <div style={{ maxWidth: 600, width: '100%' }}>
+        <div className="flex items-center gap-3 mb-5 pt-4">
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #EB7100, #F59E0B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🎓</div>
+          <div>
+            <div style={{ fontWeight: 700, color: 'white', fontSize: 15 }}>Finals Coach</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>by Chegg</div>
+          </div>
+        </div>
 
-        {/* ── Header ── */}
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🎓</span>
-              <div>
-                <div className="font-bold text-gray-900 text-sm">Finals Coach</div>
-                <div className="text-xs text-gray-400">Set up in 3 steps · takes under 2 min</div>
-              </div>
-            </div>
-            {/* Animated dot progress */}
-            <div className="flex items-center gap-1.5">
-              {[1,2,3].map(s => (
-                <div key={s} style={{
-                  height: 7, borderRadius: 99, background: s <= step ? '#EB7100' : '#EDEAF4',
-                  width: s === step ? 20 : 7, transition: 'all 0.3s ease'
-                }} />
+        {/* Course Form Card */}
+        <div className="card p-6 fade-in mb-4">
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#111827', margin: '0 0 5px', letterSpacing: '-0.3px' }}>Which exams are you preparing for?</h2>
+          <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 18px', lineHeight: 1.5 }}>We'll rank your exams by grade impact and build your study schedule around what matters most.</p>
+
+          <input ref={syllabusRef} type="file" accept=".pdf,.txt,.png,.jpg,.jpeg" className="hidden"
+            onChange={e => handleSyllabusUpload(e, syllabusTargetId)} />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {courses.map((c, i) => {
+              const sStatus = syllabusStatus[c.id];
+              const isUploading = syllabusUploading === c.id;
+              const loaded = sStatus === 'success';
+              return (
+                <CourseCardOnboarding key={c.id} c={c} idx={i} loaded={loaded} isUploading={isUploading} sStatus={sStatus}
+                  onUpdate={(field, val) => updateCourse(c.id, field, val)}
+                  onRemove={() => removeCourse(c.id)}
+                  onSyllabusClick={() => { setSyllabusTargetId(c.id); setTimeout(() => syllabusRef.current?.click(), 50); }}
+                  canRemove={courses.length > 1} />
+              );
+            })}
+          </div>
+
+          {courses.length < 7 && (
+            <button onClick={addCourse}
+              style={{ width: '100%', padding: '11px', borderRadius: 12, border: '2px dashed #E5E7EB', background: '#F9FAFB', fontSize: 13, color: '#6B7280', cursor: 'pointer', fontWeight: 600, fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, transition: 'all 0.15s' }}>
+              <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add another course
+            </button>
+          )}
+        </div>
+
+        {/* Upload Study Material Card */}
+        <div className="card fade-in mb-4" style={{ overflow: 'hidden' }}>
+          <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #F3F4F6' }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 3px' }}>Upload your study materials</h3>
+            <p style={{ fontSize: 13, color: '#6B7280', margin: 0, lineHeight: 1.45 }}>Drop your lecture slides, notes, or recordings — Finals Coach will generate a personalized study guide for each course.</p>
+          </div>
+          <div
+            onDragOver={e => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={e => { e.preventDefault(); setDragging(false); onComplete(buildCourses(), 'finals'); }}
+            onClick={() => onComplete(buildCourses(), 'finals')}
+            style={{
+              margin: '16px 20px', borderRadius: 16, border: `2px dashed ${dragging ? '#EB7100' : '#D1D5DB'}`,
+              background: dragging ? '#FFF3E8' : '#F9FAFB',
+              padding: '32px 24px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s'
+            }}>
+            <div style={{ fontSize: 34, marginBottom: 8 }}>📂</div>
+            <p style={{ fontWeight: 600, color: '#374151', margin: '0 0 3px', fontSize: 15 }}>Drop all your files here</p>
+            <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 14px' }}>or <span style={{ color: '#EB7100', textDecoration: 'underline' }}>browse</span></p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {[['📄','Lecture Slides'],['📝','Lecture Notes'],['✍️','Handwritten Notes'],['🎙️','Audio Transcript'],['📋','Practice Quizzes']].map(([icon, lbl]) => (
+                <span key={lbl} style={{ fontSize: 12, background: 'white', border: '1px solid #E5E7EB', borderRadius: 99, padding: '5px 12px', color: '#6B7280', fontWeight: 500 }}>{icon} {lbl}</span>
               ))}
             </div>
           </div>
-          {/* Step headline + single subtitle */}
-          <h2 className="text-xl font-bold text-gray-900 mb-1" style={{ letterSpacing: '-0.2px' }}>{HEADLINES[step-1]}</h2>
-          <p className="text-sm text-gray-400">{SUBTITLES[step-1]}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, padding: '0 20px 18px' }}>
+            {[['📄 Slides','PDF or PowerPoint (.pptx); exports from Canvas, Blackboard, or email'],
+              ['📝 Notes','Typed notes, scanned PDFs, text files, handwritten scans'],
+              ['🎙️ Audio Transcript','Caption or transcript files: .vtt, .srt, or .txt/.md with "transcript" in the file name']].map(([t, d]) => (
+              <div key={t} style={{ textAlign: 'center', padding: '12px 10px', background: '#F9FAFB', borderRadius: 12 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', margin: '0 0 3px' }}>{t}</p>
+                <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0, lineHeight: 1.45 }}>{d}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="p-6">
-          {step === 1 && (
-            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div className="grid grid-cols-2 gap-3">
-                <div style={{ gridColumn: '1/-1' }}>
-                  <label className="text-xs font-bold text-gray-500 block mb-1.5 uppercase tracking-wide">First name *</label>
-                  <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Jamie"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-500 block mb-1.5 uppercase tracking-wide">University *</label>
-                  <input value={university} onChange={e => setUniversity(e.target.value)} placeholder="e.g. Villanova"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-500 block mb-1.5 uppercase tracking-wide">Year *</label>
-                  <select value={year} onChange={e => setYear(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm bg-gray-50 focus:border-orange-400">
-                    <option value="">Select</option>
-                    {['Freshman','Sophomore','Junior','Senior'].map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-500 block mb-1.5 uppercase tracking-wide">Major *</label>
-                  <input value={major} onChange={e => setMajor(e.target.value)} placeholder="e.g. MIS"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-500 block mb-1.5 uppercase tracking-wide">Minor <span className="font-normal normal-case text-gray-300">optional</span></label>
-                  <input value={minor} onChange={e => setMinor(e.target.value)} placeholder="e.g. Spanish"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-orange-400 bg-gray-50"/>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-              {/* ── Course cards ── */}
-              <input ref={syllabusRef} type="file" accept=".pdf,.txt,.png,.jpg,.jpeg" className="hidden"
-                onChange={e => handleSyllabusUpload(e, syllabusTargetId)} />
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto' }}>
-                {courses.map((c, i) => {
-                  const sStatus = syllabusStatus[c.id];
-                  const isUploading = syllabusUploading === c.id;
-                  const loaded = sStatus === 'success';
-                  return (
-                    <CourseCardOnboarding key={c.id} c={c} idx={i} loaded={loaded} isUploading={isUploading} sStatus={sStatus}
-                      onUpdate={(field, val) => updateCourse(c.id, field, val)}
-                      onRemove={() => removeCourse(c.id)}
-                      onSyllabusClick={() => { setSyllabusTargetId(c.id); setTimeout(() => syllabusRef.current?.click(), 50); }}
-                      canRemove={courses.length > 1} />
-                  );
-                })}
-              </div>
-
-              {courses.length < 7 && (
-                <button onClick={addCourse}
-                  style={{ width: '100%', padding: '12px', borderRadius: 12, border: '2px solid #EB7100', background: '#FFF3E8', fontSize: 13, color: '#EB7100', cursor: 'pointer', fontWeight: 700, fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.15s' }}
-                  onMouseOver={e => { e.currentTarget.style.background = '#FFE8CC'; e.currentTarget.style.borderColor = '#C45E00'; }}
-                  onMouseOut={e => { e.currentTarget.style.background = '#FFF3E8'; e.currentTarget.style.borderColor = '#EB7100'; }}>
-                  <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add another course
-                </button>
-              )}
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="fade-in space-y-5">
-              {/* Study hours */}
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-2">How many hours per day do you plan to study during finals?</label>
-                <div className="flex flex-wrap gap-2">
-                  {[['1-2','1–2 hrs'],['2-3','2–3 hrs'],['3-5','3–5 hrs'],['4-5','4–5 hrs'],['5+','5+ hrs']].map(([val, label]) => (
-                    <button key={val} onClick={() => setStudyHours(val)}
-                      className={`px-4 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${studyHours === val ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-600 hover:border-orange-300'}`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Grade goal */}
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-2">What's your grade goal this semester?</label>
-                <div className="flex flex-wrap gap-2">
-                  {[['A (93%)','A (93%+)'],['A- (90%)','A– (90%+)'],['B+ (87%)','B+ (87%+)'],['B (83%)','B (83%+)'],['B- (80%)','B– (80%+)'],['C (73%)','C (73%+)']].map(([val, label]) => (
-                    <button key={val} onClick={() => setGradeGoal(val)}
-                      className={`px-4 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${gradeGoal === val ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-600 hover:border-orange-300'}`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Calendar sync */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block">Sync your Google or Apple Calendar</label>
-                    <p className="text-xs text-gray-400 mt-0.5">We'll find your free time slots and build your study schedule around them.</p>
-                  </div>
-                  {calStatus === 'success' && <span className="text-xs text-green-700 font-semibold bg-green-50 border border-green-200 px-3 py-1 rounded-full">✅ {calEvents.length} events loaded</span>}
-                </div>
-                <input ref={calRef} type="file" accept=".ics" className="hidden" onChange={handleCalUpload} />
-                {calStatus !== 'success' ? (
-                  <div>
-                    <button onClick={() => calRef.current?.click()} disabled={calParsing}
-                      className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 hover:border-orange-400 hover:text-orange-600 transition-all font-medium flex items-center justify-center gap-2 disabled:opacity-50">
-                      {calParsing ? '⏳ Importing your calendar…' : '📅 Upload .ics file'}
-                    </button>
-                    {calStatus === 'error' && <p className="text-xs text-red-500 mt-1.5">Could not read file — make sure it's a valid .ics export.</p>}
-                    <p className="text-xs text-gray-400 mt-2">Please do not upload a calendar that has personal or sensitive information in it.</p>
-                  </div>
-                ) : (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-green-800">
-                        📅 {Math.round(freeBlocks.reduce((s, b) => s + b.hours, 0))}h of free study time found across {freeBlocks.length} blocks
-                      </span>
-                      <button onClick={() => { setCalEvents([]); setFreeBlocks([]); setCalStatus(null); }}
-                        className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
-                    </div>
-                    <div className="space-y-1 max-h-28 overflow-y-auto">
-                      {freeBlocks.slice(0, 6).map((b, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs text-green-700">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0"></span>
-                          <span>{new Date(b.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {fmtHour(b.startHour)}–{fmtHour(b.endHour)} <span className="text-green-500">({b.hours}h)</span></span>
-                        </div>
-                      ))}
-                      {freeBlocks.length > 6 && <div className="text-xs text-green-600 pl-3">+{freeBlocks.length - 6} more blocks in your finals period</div>}
-                    </div>
-                    <div className="text-xs text-green-600">Your study schedule will be built around these real gaps in your calendar.</div>
-                  </div>
-                )}
-              </div>
-
-            </div>
-          )}
-        </div>
-
-        <div className="px-6 pb-6 flex items-center justify-between border-t border-gray-100 pt-4">
-          {step > 1 ? <button onClick={() => setStep(s => s-1)} className="btn-secondary text-sm px-5">← Back</button> : <div/>}
-          {step < TOTAL ? (
-            <button onClick={() => setStep(s => s+1)} disabled={!canContinue}
-              className="btn-primary text-sm px-6 disabled:opacity-40">Continue →</button>
-          ) : (
-            <button onClick={finish} className="btn-primary text-sm px-6">Launch Finals Coach 🚀</button>
-          )}
-        </div>
+        {/* Continue Button */}
+        <button
+          onClick={() => onComplete(buildCourses(), 'dashboard')}
+          disabled={!hasValidCourse}
+          style={{ width: '100%', padding: '14px', borderRadius: 14, background: hasValidCourse ? 'linear-gradient(135deg, #EB7100, #F59E0B)' : '#D1D5DB', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: hasValidCourse ? 'pointer' : 'not-allowed', fontFamily: 'Inter, sans-serif', boxShadow: hasValidCourse ? '0 4px 14px rgba(235,113,0,0.35)' : 'none', marginBottom: 24 }}>
+          {hasValidCourse ? 'Continue to Dashboard →' : 'Add at least one course to continue'}
+        </button>
       </div>
     </div>
   );
 }
-
 
 // ─── STUDY GUIDE (v2) ─────────────────────────────────────────────────────────
 
@@ -3237,24 +3217,41 @@ const stripFiles = (sgMap) => {
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
 function App() {
-  const [apiKey, setApiKey] = useState('__server__'); // always use server-side key on Vercel
-  // ── Hydrate state from localStorage on first load ──────────────────────────
+  const [apiKey] = useState('__server__'); // always use server-side key on Vercel
   const [profile, setProfile] = useState(() => LS.get('ca_profile', null));
-  const [courses, setCourses] = useState(() => LS.get('ca_courses', COURSES));
+  const [courses, setCourses] = useState(() => {
+    const saved = LS.get('ca_courses', null);
+    return saved !== null ? saved : [];
+  });
   const [sgLecturesByC, setSgLecturesByC] = useState(() => LS.get('ca_sg', {}));
   const [view, setView] = useState('dashboard');
   const [focusCourse, setFocusCourse] = useState(null);
+  // 'landing' | 'courseSetup' | null (null = main app)
+  const [setupPhase, setSetupPhase] = useState(() => {
+    const done = LS.get('ca_setup_done', false) || LS.get('ca_profile', null) !== null || LS.get('ca_courses', null) !== null;
+    return done ? null : 'landing';
+  });
 
-  // ── Persist state changes to localStorage ─────────────────────────────────
   useEffect(() => { if (profile) LS.set('ca_profile', profile); }, [profile]);
   useEffect(() => { LS.set('ca_courses', courses); }, [courses]);
   useEffect(() => {
     if (Object.keys(sgLecturesByC).length > 0) LS.set('ca_sg', stripFiles(sgLecturesByC));
   }, [sgLecturesByC]);
 
-  const handleOnboardingComplete = (prof, userCourses) => {
-    setProfile(prof);
-    if (userCourses && userCourses.length > 0) setCourses(userCourses);
+  const handleSetupComplete = (userCourses, afterView = 'dashboard') => {
+    if (userCourses && userCourses.length > 0) {
+      setCourses(userCourses);
+      LS.set('ca_courses', userCourses);
+    } else {
+      setCourses([]);
+      LS.set('ca_courses', []);
+    }
+    LS.set('ca_setup_done', true);
+    setSetupPhase(null);
+    if (afterView === 'finals') {
+      const firstCourse = userCourses?.[0];
+      if (firstCourse) { setView('finals'); setFocusCourse(firstCourse); }
+    }
   };
 
   const navigate = (v, course = null) => {
@@ -3265,23 +3262,51 @@ function App() {
 
   const resetAll = () => {
     if (!window.confirm('This will clear all your data and start fresh. Continue?')) return;
-    LS.clear('ca_profile', 'ca_courses', 'ca_sg');
+    LS.clear('ca_profile', 'ca_courses', 'ca_sg', 'ca_setup_done');
     setProfile(null);
-    setCourses(COURSES);
+    setCourses([]);
     setSgLecturesByC({});
     setView('dashboard');
+    setSetupPhase('landing');
   };
 
-  if (!apiKey) return <ApiKeyScreen onSubmit={setApiKey} />;
-  if (!profile) return <OnboardingWizard onComplete={handleOnboardingComplete} apiKey={apiKey} />;
+  if (setupPhase === 'landing') return <LandingPage onGetStarted={() => setSetupPhase('courseSetup')} />;
+  if (setupPhase === 'courseSetup') return (
+    <CourseSetupPage
+      apiKey={apiKey}
+      initialCourses={courses.length > 0 ? courses : null}
+      onComplete={handleSetupComplete}
+    />
+  );
 
   return (
     <div className="flex" style={{ minHeight: '100vh' }}>
       <Sidebar view={view} setView={(v) => navigate(v)} profile={profile} onReset={resetAll} />
       <main className="flex-1 p-6 scrollable" style={{ maxHeight: '100vh', overflowY: 'auto', background: '#F7F6FA' }}>
         <div style={{ maxWidth: 1200 }}>
-          {view === 'dashboard' && <Dashboard courses={courses} setCourses={setCourses} onNavigate={navigate} profile={profile} sgLecturesByC={sgLecturesByC} />}
-          {view === 'finals' && <FinalsPrep courses={courses} setCourses={setCourses} apiKey={apiKey} focusCourse={focusCourse} profile={profile} onNavigate={navigate} sgLecturesByC={sgLecturesByC} setSgLecturesByC={setSgLecturesByC} />}
+          {view === 'dashboard' && (
+            <Dashboard
+              courses={courses}
+              setCourses={setCourses}
+              onNavigate={navigate}
+              profile={profile}
+              setProfile={setProfile}
+              sgLecturesByC={sgLecturesByC}
+              onGoToCourseSetup={() => setSetupPhase('courseSetup')}
+            />
+          )}
+          {view === 'finals' && (
+            <FinalsPrep
+              courses={courses}
+              setCourses={setCourses}
+              apiKey={apiKey}
+              focusCourse={focusCourse}
+              profile={profile}
+              onNavigate={navigate}
+              sgLecturesByC={sgLecturesByC}
+              setSgLecturesByC={setSgLecturesByC}
+            />
+          )}
         </div>
       </main>
     </div>
