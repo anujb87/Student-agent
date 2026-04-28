@@ -1950,8 +1950,7 @@ function CourseSetupPage({ apiKey, initialCourses, onComplete }) {
 
         {/* Course Form Card */}
         <div className="card p-6 fade-in mb-4">
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#111827', margin: '0 0 5px', letterSpacing: '-0.3px' }}>Which exams are you preparing for?</h2>
-          <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 18px', lineHeight: 1.5 }}>We'll rank your exams by grade impact and build your study schedule around what matters most.</p>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#111827', margin: '0 0 18px', letterSpacing: '-0.3px' }}>Add course details and generate personalized study guide</h2>
 
           <input ref={syllabusRef} type="file" accept=".pdf,.txt,.png,.jpg,.jpeg" className="hidden"
             onChange={e => handleSyllabusUpload(e, syllabusTargetId)} />
