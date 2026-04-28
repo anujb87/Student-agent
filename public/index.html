@@ -1376,7 +1376,7 @@ function Dashboard({ courses, setCourses, onNavigate, profile, setProfile, sgLec
 }
 
 // ─── FINALS PREP ──────────────────────────────────────────────────────────────
-function FinalsPrep({ courses, setCourses, apiKey, focusCourse, profile, onNavigate, sgLecturesByC, setSgLecturesByC }) {
+function FinalsPrep({ courses, setCourses, apiKey, focusCourse, profile, onNavigate, sgLecturesByC, setSgLecturesByC, seedRawFiles, onSeedConsumed }) {
   const [selected, setSelected] = useState(focusCourse || null);
   const [chatOpen, setChatOpen] = useState(false);
   // Course edit/delete
@@ -1727,6 +1727,8 @@ Rules: finalDate is end-of-semester final only; topics are 5-15 main modules; de
         profile={profile}
         initialLectures={sgLecturesByC[course.id] || []}
         onLecturesUpdate={(lecs) => setSgLecturesByC(prev => ({...prev, [course.id]: lecs}))}
+        seedRawFiles={seedRawFiles}
+        onSeedConsumed={onSeedConsumed}
       />
 
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} apiKey={apiKey}
@@ -1981,7 +1983,7 @@ function CourseSetupPage({ apiKey, initialCourses, onComplete }) {
           {/* Hidden file input */}
           <input ref={filePickerRef} type="file" multiple accept=".pdf,.txt,.png,.jpg,.jpeg,.pptx,.docx,.vtt,.srt,.mp3,.wav,.m4a" style={{display:'none'}}
             onChange={e => {
-              const added = Array.from(e.target.files).map(f => ({ id: Math.random().toString(36).slice(2), name: f.name }));
+              const added = Array.from(e.target.files).map(f => ({ id: Math.random().toString(36).slice(2), name: f.name, file: f }));
               setPickedFiles(p => [...p, ...added]);
               e.target.value = '';
             }} />
@@ -1992,7 +1994,7 @@ function CourseSetupPage({ apiKey, initialCourses, onComplete }) {
             onDragLeave={() => setDragging(false)}
             onDrop={e => {
               e.preventDefault(); setDragging(false);
-              const added = Array.from(e.dataTransfer.files).map(f => ({ id: Math.random().toString(36).slice(2), name: f.name }));
+              const added = Array.from(e.dataTransfer.files).map(f => ({ id: Math.random().toString(36).slice(2), name: f.name, file: f }));
               setPickedFiles(p => [...p, ...added]);
             }}
             style={{
@@ -2052,7 +2054,7 @@ function CourseSetupPage({ apiKey, initialCourses, onComplete }) {
         {/* CTAs */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
           <button
-            onClick={() => { if (hasValidCourse) onComplete(buildCourses(), 'finals'); }}
+            onClick={() => { if (hasValidCourse) onComplete(buildCourses(), 'finals', pickedFiles.map(p => p.file).filter(Boolean)); }}
             disabled={!hasValidCourse}
             style={{ width: '100%', padding: '14px', borderRadius: 14, background: hasValidCourse ? 'linear-gradient(135deg, #EB7100, #F59E0B)' : '#D1D5DB', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: hasValidCourse ? 'pointer' : 'not-allowed', fontFamily: 'Inter, sans-serif', boxShadow: hasValidCourse ? '0 4px 14px rgba(235,113,0,0.35)' : 'none' }}>
             {hasValidCourse ? '✨ Generate study guide' : 'Add at least one course to continue'}
@@ -2151,7 +2153,7 @@ function QuizUI({ quiz, answers, submitted, onAnswer, onSubmit, onReset }) {
   );
 }
 
-function StudyGuide({ courses, apiKey, initialCourseId, inlineMode, onLecturesUpdate, initialLectures, profile }) {
+function StudyGuide({ courses, apiKey, initialCourseId, inlineMode, onLecturesUpdate, initialLectures, profile, seedRawFiles, onSeedConsumed }) {
   const [courseId, setCourseId] = useState(initialCourseId || courses[0]?.id || null);
   // Restore to study phase if persisted lectures exist for this course
   const _hasPersistedLectures = initialLectures?.some(l => l.status === 'ready' || l.status === 'processing');
@@ -2272,6 +2274,54 @@ Rules: 3-6 topics, 4-6 concepts each, be specific and exam-focused.`;
     }
     setGenerating(false);
   };
+
+  // Auto-generate when coming from CourseSetupPage (seedRawFiles !== null)
+  useEffect(() => {
+    if (seedRawFiles === null || _hasPersistedLectures) return;
+    if (onSeedConsumed) onSeedConsumed();
+    const course = courses[0];
+    const run = async () => {
+      let processed = [];
+      if (seedRawFiles.length > 0) {
+        try { processed = await sgReadFiles(seedRawFiles); } catch(e) {}
+      }
+      // If no files uploaded, synthesize from course info
+      if (processed.length === 0 && course) {
+        const topicsText = course.topics?.length > 0
+          ? `\nKey Topics: ${course.topics.map(t => t.name).join(', ')}`
+          : '';
+        const info = `Course: ${course.name}\nFinal Exam: ${course.finalDate ? 'on ' + course.finalDate : 'date TBD'} (${daysUntil(course.finalDate)} days away)\nFinal Weight: ${course.finalWeight}% of grade\nCurrent Grade: ${course.currentGrade}%${topicsText}\n\nPlease generate a comprehensive study guide covering the key topics and concepts students need to master for this course.`;
+        processed = [{ id: 'course-info', name: (course.name || 'Course') + ' - Overview', type: 'text', content: info, mediaType: null }];
+      }
+      if (!processed.length) return;
+      const lecLabel = processed.length === 1 && processed[0].id === 'course-info'
+        ? `${course?.name || 'Course'} Study Guide`
+        : processed.length === 1 ? processed[0].name : 'Your Study Materials';
+      const lec = { id: `auto_${Date.now()}`, label: lecLabel, files: processed, status: 'processing', guide: null, quiz: null, quizLoading: false, understood: {}, quizAnswers: [], quizSubmitted: false };
+      setFiles(processed);
+      setLectures([lec]);
+      setAddingMore(false);
+      setPhase('study');
+      setSelLecId('__all__');
+      setMode('summary');
+      setGenerating(true);
+      setGenProgress(0);
+      try {
+        const sys = `You are an expert study guide generator. Analyze ALL provided materials and return a comprehensive, exam-focused study guide.
+Return ONLY valid JSON, no markdown:
+{"title":"Specific title based on content","topics":[{"name":"Topic Name","summary":"2-3 sentence overview","concepts":["specific concept or key fact","another concept","formula or definition if relevant"]}]}
+Rules: 3-6 topics, 4-6 concepts each, be specific and exam-focused.`;
+        const raw = await callAPI(apiKey, sys, [{ role: 'user', content: buildContent(processed, lecLabel) }]);
+        const guide = parseJSON(raw);
+        setLectures([{ ...lec, guide, status: 'ready', label: guide.title || lecLabel }]);
+      } catch(e) {
+        setLectures([{ ...lec, status: 'error' }]);
+      }
+      setGenProgress(100);
+      setGenerating(false);
+    };
+    run();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rebuild flashcard deck whenever lectures change
   useEffect(() => {
@@ -3273,6 +3323,7 @@ function App() {
   const [sgLecturesByC, setSgLecturesByC] = useState(() => LS.get('ca_sg', {}));
   const [view, setView] = useState('dashboard');
   const [focusCourse, setFocusCourse] = useState(null);
+  const [pendingStudyFiles, setPendingStudyFiles] = useState(null); // null=no auto-gen; []=auto-gen from course info; [File,...]=auto-gen from files
   // 'landing' | 'courseSetup' | null (null = main app)
   const [setupPhase, setSetupPhase] = useState(() => {
     const done = LS.get('ca_setup_done', false) || LS.get('ca_profile', null) !== null || LS.get('ca_courses', null) !== null;
@@ -3285,7 +3336,7 @@ function App() {
     if (Object.keys(sgLecturesByC).length > 0) LS.set('ca_sg', stripFiles(sgLecturesByC));
   }, [sgLecturesByC]);
 
-  const handleSetupComplete = (userCourses, afterView = 'dashboard') => {
+  const handleSetupComplete = (userCourses, afterView = 'dashboard', rawFiles = null) => {
     if (userCourses && userCourses.length > 0) {
       setCourses(userCourses);
       LS.set('ca_courses', userCourses);
@@ -3297,7 +3348,11 @@ function App() {
     setSetupPhase(null);
     if (afterView === 'finals') {
       const firstCourse = userCourses?.[0];
-      if (firstCourse) { setView('finals'); setFocusCourse(firstCourse); }
+      if (firstCourse) {
+        setView('finals');
+        setFocusCourse(firstCourse);
+        setPendingStudyFiles(rawFiles ?? []);
+      }
     }
   };
 
@@ -3352,6 +3407,8 @@ function App() {
               onNavigate={navigate}
               sgLecturesByC={sgLecturesByC}
               setSgLecturesByC={setSgLecturesByC}
+              seedRawFiles={pendingStudyFiles}
+              onSeedConsumed={() => setPendingStudyFiles(null)}
             />
           )}
         </div>
