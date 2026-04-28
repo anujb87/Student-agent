@@ -842,7 +842,7 @@ function Dashboard({ courses, setCourses, onNavigate, profile, setProfile, sgLec
             {courses.length > 0 ? `${firstFinal} days to first final` : 'Add your courses to get started'}
           </p>
         </div>
-        <button onClick={() => setShowAddCourse(true)} className="btn-secondary text-sm flex items-center gap-1.5">
+        <button onClick={onGoToCourseSetup} className="btn-secondary text-sm flex items-center gap-1.5">
           + Add Course
         </button>
       </div>
@@ -1860,6 +1860,8 @@ function CourseSetupPage({ apiKey, initialCourses, onComplete }) {
   const syllabusRef = useRef(null);
   const [syllabusTargetId, setSyllabusTargetId] = useState(null);
   const [dragging, setDragging] = useState(false);
+  const [pickedFiles, setPickedFiles] = useState([]);
+  const filePickerRef = useRef(null);
 
   const addCourse = () => setCourses(p => [...p, { id: Date.now(), name: '', professor: '', finalDate: '', currentGrade: '', finalWeight: '', topics: '' }]);
   const removeCourse = (id) => setCourses(p => p.filter(c => c.id !== id));
@@ -1966,12 +1968,6 @@ function CourseSetupPage({ apiKey, initialCourses, onComplete }) {
             })}
           </div>
 
-          {courses.length < 7 && (
-            <button onClick={addCourse}
-              style={{ width: '100%', padding: '11px', borderRadius: 12, border: '2px dashed #E5E7EB', background: '#F9FAFB', fontSize: 13, color: '#6B7280', cursor: 'pointer', fontWeight: 600, fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10, transition: 'all 0.15s' }}>
-              <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add another course
-            </button>
-          )}
         </div>
 
         {/* Upload Study Material Card */}
@@ -1980,44 +1976,94 @@ function CourseSetupPage({ apiKey, initialCourses, onComplete }) {
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 3px' }}>Upload your study materials</h3>
             <p style={{ fontSize: 13, color: '#6B7280', margin: 0, lineHeight: 1.45 }}>Drop your lecture slides, notes, or recordings — Finals Coach will generate a personalized study guide for each course.</p>
           </div>
+
+          {/* Hidden file input */}
+          <input ref={filePickerRef} type="file" multiple accept=".pdf,.txt,.png,.jpg,.jpeg,.pptx,.docx,.vtt,.srt,.mp3,.wav,.m4a" style={{display:'none'}}
+            onChange={e => {
+              const added = Array.from(e.target.files).map(f => ({ id: Math.random().toString(36).slice(2), name: f.name }));
+              setPickedFiles(p => [...p, ...added]);
+              e.target.value = '';
+            }} />
+
+          {/* Dropzone */}
           <div
             onDragOver={e => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
-            onDrop={e => { e.preventDefault(); setDragging(false); onComplete(buildCourses(), 'finals'); }}
-            onClick={() => onComplete(buildCourses(), 'finals')}
+            onDrop={e => {
+              e.preventDefault(); setDragging(false);
+              const added = Array.from(e.dataTransfer.files).map(f => ({ id: Math.random().toString(36).slice(2), name: f.name }));
+              setPickedFiles(p => [...p, ...added]);
+            }}
             style={{
-              margin: '16px 20px', borderRadius: 16, border: `2px dashed ${dragging ? '#EB7100' : '#D1D5DB'}`,
-              background: dragging ? '#FFF3E8' : '#F9FAFB',
-              padding: '32px 24px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s'
+              margin: '16px 20px', borderRadius: 16,
+              border: `2px dashed ${dragging ? '#EB7100' : pickedFiles.length > 0 ? '#EB7100' : '#D1D5DB'}`,
+              background: dragging ? '#FFF3E8' : pickedFiles.length > 0 ? '#FFF8F0' : '#F9FAFB',
+              padding: '28px 24px', textAlign: 'center', transition: 'all 0.15s'
             }}>
-            <div style={{ fontSize: 34, marginBottom: 8 }}>📂</div>
-            <p style={{ fontWeight: 600, color: '#374151', margin: '0 0 3px', fontSize: 15 }}>Drop all your files here</p>
-            <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 14px' }}>or <span style={{ color: '#EB7100', textDecoration: 'underline' }}>browse</span></p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-              {[['📄','Lecture Slides'],['📝','Lecture Notes'],['✍️','Handwritten Notes'],['🎙️','Audio Transcript'],['📋','Practice Quizzes']].map(([icon, lbl]) => (
-                <span key={lbl} style={{ fontSize: 12, background: 'white', border: '1px solid #E5E7EB', borderRadius: 99, padding: '5px 12px', color: '#6B7280', fontWeight: 500 }}>{icon} {lbl}</span>
+            {pickedFiles.length === 0 ? (
+              <>
+                <div style={{ fontSize: 34, marginBottom: 8 }}>📂</div>
+                <p style={{ fontWeight: 600, color: '#374151', margin: '0 0 3px', fontSize: 15 }}>Drop all your files here</p>
+                <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 14px' }}>
+                  or <span onClick={() => filePickerRef.current?.click()} style={{ color: '#EB7100', textDecoration: 'underline', cursor: 'pointer' }}>browse</span>
+                </p>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {[['📄','Lecture Slides'],['📝','Lecture Notes'],['✍️','Handwritten Notes'],['🎙️','Audio Transcript'],['📋','Practice Quizzes']].map(([icon, lbl]) => (
+                    <span key={lbl} style={{ fontSize: 12, background: 'white', border: '1px solid #E5E7EB', borderRadius: 99, padding: '5px 12px', color: '#6B7280', fontWeight: 500 }}>{icon} {lbl}</span>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12, maxHeight: 160, overflowY: 'auto' }}>
+                  {pickedFiles.map(f => (
+                    <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'white', borderRadius: 8, padding: '7px 10px', border: '1px solid #E5E7EB' }}>
+                      <span style={{ fontSize: 14 }}>📄</span>
+                      <span style={{ flex: 1, fontSize: 12, color: '#374151', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                      <button onClick={() => setPickedFiles(p => p.filter(x => x.id !== f.id))}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 14, lineHeight: 1, padding: 0 }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => filePickerRef.current?.click()}
+                  style={{ fontSize: 12, color: '#EB7100', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
+                  + Add more files
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* File type guide */}
+          {pickedFiles.length === 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, padding: '0 20px 18px' }}>
+              {[['📄 Slides','PDF or PowerPoint (.pptx); exports from Canvas, Blackboard, or email'],
+                ['📝 Notes','Typed notes, scanned PDFs, text files, handwritten scans'],
+                ['🎙️ Audio Transcript','Caption or transcript files: .vtt, .srt, or .txt/.md with "transcript" in the file name']].map(([t, d]) => (
+                <div key={t} style={{ textAlign: 'center', padding: '12px 10px', background: '#F9FAFB', borderRadius: 12 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', margin: '0 0 3px' }}>{t}</p>
+                  <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0, lineHeight: 1.45 }}>{d}</p>
+                </div>
               ))}
             </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, padding: '0 20px 18px' }}>
-            {[['📄 Slides','PDF or PowerPoint (.pptx); exports from Canvas, Blackboard, or email'],
-              ['📝 Notes','Typed notes, scanned PDFs, text files, handwritten scans'],
-              ['🎙️ Audio Transcript','Caption or transcript files: .vtt, .srt, or .txt/.md with "transcript" in the file name']].map(([t, d]) => (
-              <div key={t} style={{ textAlign: 'center', padding: '12px 10px', background: '#F9FAFB', borderRadius: 12 }}>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', margin: '0 0 3px' }}>{t}</p>
-                <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0, lineHeight: 1.45 }}>{d}</p>
-              </div>
-            ))}
-          </div>
+          )}
         </div>
 
-        {/* Continue Button */}
-        <button
-          onClick={() => onComplete(buildCourses(), 'dashboard')}
-          disabled={!hasValidCourse}
-          style={{ width: '100%', padding: '14px', borderRadius: 14, background: hasValidCourse ? 'linear-gradient(135deg, #EB7100, #F59E0B)' : '#D1D5DB', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: hasValidCourse ? 'pointer' : 'not-allowed', fontFamily: 'Inter, sans-serif', boxShadow: hasValidCourse ? '0 4px 14px rgba(235,113,0,0.35)' : 'none', marginBottom: 24 }}>
-          {hasValidCourse ? 'Continue to Dashboard →' : 'Add at least one course to continue'}
-        </button>
+        {/* CTAs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+          <button
+            onClick={() => { if (hasValidCourse) onComplete(buildCourses(), 'finals'); }}
+            disabled={!hasValidCourse}
+            style={{ width: '100%', padding: '14px', borderRadius: 14, background: hasValidCourse ? 'linear-gradient(135deg, #EB7100, #F59E0B)' : '#D1D5DB', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: hasValidCourse ? 'pointer' : 'not-allowed', fontFamily: 'Inter, sans-serif', boxShadow: hasValidCourse ? '0 4px 14px rgba(235,113,0,0.35)' : 'none' }}>
+            {hasValidCourse ? '✨ Generate study guide' : 'Add at least one course to continue'}
+          </button>
+          {hasValidCourse && (
+            <button
+              onClick={() => onComplete(buildCourses(), 'dashboard')}
+              style={{ width: '100%', padding: '11px', borderRadius: 14, background: 'transparent', border: '1.5px solid rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
+              Skip to Dashboard
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
