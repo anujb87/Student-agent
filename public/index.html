@@ -1940,17 +1940,33 @@ function CourseSetupPage({ apiKey, initialCourses, onComplete }) {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e1b4b 0%, #4f46e5 50%, #7c3aed 100%)' }} className="flex justify-center p-6 scrollable" style={{ overflowY: 'auto' }}>
       <div style={{ maxWidth: 600, width: '100%' }}>
-        <div className="flex items-center gap-3 mb-5 pt-4">
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #EB7100, #F59E0B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🎓</div>
-          <div>
-            <div style={{ fontWeight: 700, color: 'white', fontSize: 15 }}>Finals Coach</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>by Chegg</div>
+        {/* ── Combined value hero + branding ── */}
+        <div className="card fade-in mb-4" style={{ background: 'linear-gradient(135deg, #302C41 0%, #1e1b4b 100%)', border: 'none', padding: '24px 26px 22px' }}>
+          <div className="flex items-center gap-3 mb-4">
+            <div style={{ width: 38, height: 38, borderRadius: 11, background: 'linear-gradient(135deg, #EB7100, #F59E0B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🎓</div>
+            <div>
+              <div style={{ fontWeight: 800, color: 'white', fontSize: 16, letterSpacing: '-0.2px' }}>Finals Coach</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>by Chegg</div>
+            </div>
+          </div>
+          <p style={{ fontSize: 15, fontWeight: 600, color: 'white', margin: '0 0 6px', lineHeight: 1.4, letterSpacing: '-0.2px' }}>
+            Ace your finals with a personalized study guide and day-by-day study plan.
+          </p>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', margin: '0 0 18px', lineHeight: 1.5 }}>
+            Add your course below — Finals Coach handles the rest in minutes.
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[['📖','AI study guide'], ['📅','Day-by-day plan'], ['🎯','Grade gap analysis'], ['📝','Practice quizzes']].map(([icon, label]) => (
+              <span key={label} style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                {icon} {label}
+              </span>
+            ))}
           </div>
         </div>
 
         {/* Course Form Card */}
         <div className="card p-6 fade-in mb-4">
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#111827', margin: '0 0 18px', letterSpacing: '-0.3px' }}>Add course details and generate personalized study guide</h2>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 14px', letterSpacing: '-0.2px' }}>Your course</h2>
 
           <input ref={syllabusRef} type="file" accept=".pdf,.txt,.png,.jpg,.jpeg" className="hidden"
             onChange={e => handleSyllabusUpload(e, syllabusTargetId)} />
@@ -3323,10 +3339,10 @@ function App() {
   const [view, setView] = useState('dashboard');
   const [focusCourse, setFocusCourse] = useState(null);
   const [pendingStudyFiles, setPendingStudyFiles] = useState(null); // null=no auto-gen; []=auto-gen from course info; [File,...]=auto-gen from files
-  // 'landing' | 'courseSetup' | null (null = main app)
+  // 'courseSetup' | null (null = main app)
   const [setupPhase, setSetupPhase] = useState(() => {
     const done = LS.get('ca_setup_done', false) || LS.get('ca_profile', null) !== null || LS.get('ca_courses', null) !== null;
-    return done ? null : 'landing';
+    return done ? null : 'courseSetup';
   });
 
   useEffect(() => { if (profile) LS.set('ca_profile', profile); }, [profile]);
@@ -3368,10 +3384,10 @@ function App() {
     setCourses([]);
     setSgLecturesByC({});
     setView('dashboard');
-    setSetupPhase('landing');
+    setSetupPhase('courseSetup');
   };
 
-  if (setupPhase === 'landing') return <LandingPage onGetStarted={() => setSetupPhase('courseSetup')} />;
+  if (setupPhase === 'landing') return <LandingPage onGetStarted={() => setSetupPhase('courseSetup')} />; {/* kept but never reached */}
   if (setupPhase === 'courseSetup') return (
     <CourseSetupPage
       apiKey={apiKey}
