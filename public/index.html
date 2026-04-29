@@ -343,13 +343,13 @@ const COURSES = [
     topics: [
       { id: 1, name: 'Entity-Relationship Diagrams', studied: true, mastery: 82 },
       { id: 2, name: 'Relational Model & Normalization', studied: true, mastery: 75 },
-      { id: 3, name: 'SQL Fundamentals — SELECT, WHERE, JOIN', studied: true, mastery: 88 },
-      { id: 4, name: 'Advanced SQL — Subqueries & Aggregation', studied: true, mastery: 70 },
+      { id: 3, name: 'SQL Fundamentals: SELECT, WHERE, JOIN', studied: true, mastery: 88 },
+      { id: 4, name: 'Advanced SQL: Subqueries & Aggregation', studied: true, mastery: 70 },
       { id: 5, name: 'Views, Stored Procedures & Triggers', studied: false, mastery: 0 },
       { id: 6, name: 'Indexing & Query Optimization', studied: false, mastery: 0 },
       { id: 7, name: 'Transactions & Concurrency (ACID)', studied: false, mastery: 0 },
       { id: 8, name: 'Database Security & Access Control', studied: false, mastery: 0 },
-      { id: 9, name: 'NoSQL Systems — MongoDB, Cassandra', studied: false, mastery: 0 },
+      { id: 9, name: 'NoSQL Systems: MongoDB, Cassandra', studied: false, mastery: 0 },
       { id: 10, name: 'Cloud Databases & Big Data', studied: false, mastery: 0 },
     ]
   },
@@ -368,7 +368,7 @@ const COURSES = [
       { id: 2, name: 'SWOT & PESTEL Analysis', studied: true, mastery: 85 },
       { id: 3, name: 'Competitive Advantage & Value Chain', studied: true, mastery: 78 },
       { id: 4, name: 'Corporate vs. Business Strategy', studied: false, mastery: 0 },
-      { id: 5, name: 'Growth Strategies — Ansoff Matrix', studied: false, mastery: 0 },
+      { id: 5, name: 'Growth Strategies: Ansoff Matrix', studied: false, mastery: 0 },
       { id: 6, name: 'M&A and Strategic Alliances', studied: false, mastery: 0 },
       { id: 7, name: 'International Strategy & Globalization', studied: false, mastery: 0 },
       { id: 8, name: 'Strategy Implementation & Change Mgmt', studied: false, mastery: 0 },
@@ -545,7 +545,7 @@ function ApiKeyScreen({ onSubmit }) {
         </div>
         <div className="card p-8 fade-in">
           <div className="rounded-xl p-4 mb-6 text-sm" style={{ background: '#FFF3E8', color: '#9A3412', border: '1px solid #FFBC80' }}>
-            <strong>Prototype Demo</strong> — powered by Finals Coach. Enter your Anthropic API key to get started.
+            <strong>Prototype Demo</strong>, powered by Finals Coach. Enter your Anthropic API key to get started.
             The key is used only for this session and never stored.
           </div>
           <label className="block text-sm font-semibold mb-1.5" style={{ color: '#302C41' }}>Anthropic API Key</label>
@@ -701,7 +701,7 @@ function Dashboard({ courses, setCourses, onNavigate, profile, setProfile, sgLec
           }
         }
       }
-      return 'All topics reviewed — test yourself!';
+      return 'All topics reviewed. Test yourself!';
     }
     const unStudied = c.topics.filter(t => !t.studied);
     return unStudied.length > 0 ? unStudied[0].name : (c.topics[0]?.name || null);
@@ -765,7 +765,7 @@ function Dashboard({ courses, setCourses, onNavigate, profile, setProfile, sgLec
                       display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all 0.12s', opacity: modalCalParsing ? 0.6 : 1}}>
                     {modalCalParsing ? '⏳ Importing calendar…' : '📅 Upload .ics file'}
                   </button>
-                  {modalCalStatus === 'error' && <p style={{fontSize:11, color:'#EF4444', margin:'6px 0 0'}}>Could not read file — make sure it's a valid .ics export.</p>}
+                  {modalCalStatus === 'error' && <p style={{fontSize:11, color:'#EF4444', margin:'6px 0 0'}}>Could not read file. Make sure it's a valid .ics export.</p>}
                   <p style={{fontSize:11, color:'#9CA3AF', margin:'6px 0 0'}}>Please do not upload a calendar that has personal or sensitive information in it.</p>
                 </div>
               ) : (
@@ -993,7 +993,7 @@ function Dashboard({ courses, setCourses, onNavigate, profile, setProfile, sgLec
             return (
               <div>
                 <h2 style={{fontSize:11, fontWeight:700, color:'#9991BF', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4}}>What needs your attention today</h2>
-                <p style={{fontSize:13, color:'#9991BF', marginBottom:14}}>You have study sessions planned — upload materials to make the most of them.</p>
+                <p style={{fontSize:13, color:'#9991BF', marginBottom:14}}>You have study sessions planned. Upload materials to make the most of them.</p>
                 <div style={{display:'flex', flexDirection:'column', gap:10}}>
                   {uniqToday.map(s => (
                     <AttentionCard key={s.course.id} c={s.course} showScheduledBanner={true} timeLabel={s.timeLabel} showUploadCTA={true} />
@@ -1008,7 +1008,7 @@ function Dashboard({ courses, setCourses, onNavigate, profile, setProfile, sgLec
             return (
               <div>
                 <h2 style={{fontSize:11, fontWeight:700, color:'#9991BF', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4}}>What needs your attention today</h2>
-                <p style={{fontSize:13, color:'#9991BF', marginBottom:14}}>No sessions scheduled — pick up where you left off.</p>
+                <p style={{fontSize:13, color:'#9991BF', marginBottom:14}}>No sessions scheduled. Pick up where you left off.</p>
                 <div style={{display:'flex', flexDirection:'column', gap:10}}>
                   {ranked.slice(0, 3).map((c, i) => (
                     <AttentionCard key={c.id} c={c} isTop={i===0} showNextTask={true} />
@@ -1048,7 +1048,7 @@ function Dashboard({ courses, setCourses, onNavigate, profile, setProfile, sgLec
             const sh = row.startHour ?? 9; // default 9am for date-only sessions
             lines.push('BEGIN:VEVENT',`UID:${uid()}@campusagent`,`DTSTART:${toICSdt(row.date,sh)}`,
               `DTEND:${toICSdt(row.date,sh+row.hours)}`,
-              `SUMMARY:📚 ${row.course.name} — Finals Prep`,
+              `SUMMARY:📚 ${row.course.name}: Finals Prep`,
               row.topicFocus ? `DESCRIPTION:Topics: ${row.topicFocus}` : '',
               'END:VEVENT');
           }
@@ -1452,7 +1452,7 @@ Rules: finalDate is end-of-semester final only; topics are 5-15 main modules; de
             }
           }
         }
-        return 'All topics reviewed — test yourself!';
+        return 'All topics reviewed. Test yourself!';
       }
       const unStudied = c.topics.filter(t => !t.studied);
       return unStudied.length > 0 ? unStudied[0].name : null;
@@ -1460,11 +1460,11 @@ Rules: finalDate is end-of-semester final only; topics are 5-15 main modules; de
 
     // Subtitle changes per state
     const fpSubtitle = (!fpAnyHasGuide && !fpHasTodaySessions)
-      ? 'Upload study materials to create your personalized study guides — sorted by priority'
+      ? 'Upload study materials to create your personalized study guides, sorted by priority'
       : (!fpAnyHasGuide && fpHasTodaySessions)
       ? 'Upload study materials to prep for today\'s scheduled sessions'
       : (fpAnyHasGuide && !fpHasTodaySessions)
-      ? 'Keep the momentum going — pick up where you left off'
+      ? 'Keep the momentum going. Pick up where you left off'
       : 'Your study plan for today and progress across all finals';
 
     return (
@@ -1563,7 +1563,7 @@ Rules: finalDate is end-of-semester final only; topics are 5-15 main modules; de
                   {sessionsToday[0]?.timeLabel && <span style={{fontSize:11, color:'#9991BF', fontWeight:500}}>· {sessionsToday[0].timeLabel}</span>}
                 </div>
               ) : isTopPriority && (
-                <div className="text-xs font-bold text-amber-700 mb-2">🔥 Highest Priority — Study This First</div>
+                <div className="text-xs font-bold text-amber-700 mb-2">🔥 Highest Priority: Study This First</div>
               )}
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3 cursor-pointer flex-1" onClick={() => setSelected(c)}>
@@ -1732,11 +1732,11 @@ Rules: finalDate is end-of-semester final only; topics are 5-15 main modules; de
       />
 
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} apiKey={apiKey}
-        systemPrompt={sysPrompt} title={`Finals Coach — ${course.name}`}
+        systemPrompt={sysPrompt} title={`Finals Coach: ${course.name}`}
         suggestions={[
           `What are the highest-priority topics for the final given I have ${d} days?`,
           `Connect the key themes across the whole semester for ${course.name}`,
-          `I currently have ${course.currentGrade}% — what do I need to focus on to get a B?`,
+          `I currently have ${course.currentGrade}%. What do I need to focus on to get a B?`,
           ...(course.topics.length > 0 ? [`Quiz me on ${course.topics.find(t=>!t.studied)?.name || course.topics[0]?.name || course.name}`] : [`What topics should I study for ${course.name}?`]),
           `What questions are most likely to appear on a cumulative final for ${course.name}?`
         ]} />
@@ -1822,13 +1822,13 @@ function LandingPage({ onGetStarted }) {
         <div style={{ padding: '40px 36px 28px', textAlign: 'center', borderBottom: '1px solid #F3F4F6' }}>
           <div style={{ width: 64, height: 64, borderRadius: 20, background: 'linear-gradient(135deg, #EB7100, #F59E0B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, margin: '0 auto 18px' }}>🎓</div>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: '#111827', margin: '0 0 10px', letterSpacing: '-0.5px' }}>Meet Finals Coach</h1>
-          <p style={{ fontSize: 15, color: '#6B7280', margin: 0, lineHeight: 1.6 }}>Your AI-powered study partner for finals season — built right inside Chegg.</p>
+          <p style={{ fontSize: 15, color: '#6B7280', margin: 0, lineHeight: 1.6 }}>Your AI-powered study partner for finals season, built right inside Chegg.</p>
         </div>
         <div style={{ padding: '24px 36px', display: 'flex', flexDirection: 'column', gap: 18 }}>
           {[
             { icon: '📅', title: 'Personalized study schedule', desc: 'We rank your exams by grade impact and build a day-by-day plan around your free time.' },
             { icon: '📖', title: 'AI study guides per course', desc: 'Upload your notes and Finals Coach generates a focused guide covering every topic on your final.' },
-            { icon: '🎯', title: 'Grade gap analysis', desc: 'See exactly what score you need on each final to hit your semester goal — no guessing.' },
+            { icon: '🎯', title: 'Grade gap analysis', desc: 'See exactly what score you need on each final to hit your semester goal. No guessing.' },
             { icon: '📝', title: 'Practice quizzes on demand', desc: 'Test yourself on any topic, get instant feedback, and track what you\'ve mastered.' },
           ].map(({ icon, title, desc }) => (
             <div key={title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
@@ -1946,17 +1946,16 @@ function CourseSetupPage({ apiKey, initialCourses, onComplete }) {
             <div style={{ width: 38, height: 38, borderRadius: 11, background: 'linear-gradient(135deg, #EB7100, #F59E0B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🎓</div>
             <div>
               <div style={{ fontWeight: 800, color: 'white', fontSize: 16, letterSpacing: '-0.2px' }}>Finals Coach</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>by Chegg</div>
             </div>
           </div>
           <p style={{ fontSize: 15, fontWeight: 600, color: 'white', margin: '0 0 6px', lineHeight: 1.4, letterSpacing: '-0.2px' }}>
-            Ace your finals with a personalized study guide and day-by-day study plan.
+            Own your finals with a personalized study guide and plan
           </p>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', margin: '0 0 18px', lineHeight: 1.5 }}>
-            Add your course below — Finals Coach handles the rest in minutes.
+            Add your course
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {[['📖','AI study guide'], ['📅','Day-by-day plan'], ['🎯','Grade gap analysis'], ['📝','Practice quizzes']].map(([icon, label]) => (
+            {[['📖','AI study guide'], ['📝','Practice quizzes'], ['📅','Day-by-day plan']].map(([icon, label]) => (
               <span key={label} style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                 {icon} {label}
               </span>
@@ -1966,7 +1965,7 @@ function CourseSetupPage({ apiKey, initialCourses, onComplete }) {
 
         {/* Course Form Card */}
         <div className="card p-6 fade-in mb-4">
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 14px', letterSpacing: '-0.2px' }}>Your course</h2>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 14px', letterSpacing: '-0.2px' }}>Add your course</h2>
 
           <input ref={syllabusRef} type="file" accept=".pdf,.txt,.png,.jpg,.jpeg" className="hidden"
             onChange={e => handleSyllabusUpload(e, syllabusTargetId)} />
@@ -1992,7 +1991,7 @@ function CourseSetupPage({ apiKey, initialCourses, onComplete }) {
         <div className="card fade-in mb-4" style={{ overflow: 'hidden' }}>
           <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #F3F4F6' }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 3px' }}>Upload your study materials</h3>
-            <p style={{ fontSize: 13, color: '#6B7280', margin: 0, lineHeight: 1.45 }}>Drop your lecture slides, notes, or recordings — Finals Coach will generate a personalized study guide for each course.</p>
+            <p style={{ fontSize: 13, color: '#6B7280', margin: 0, lineHeight: 1.45 }}>Upload your lecture slides, notes, or recordings</p>
           </div>
 
           {/* Hidden file input */}
@@ -2202,7 +2201,7 @@ function StudyGuide({ courses, apiKey, initialCourseId, inlineMode, onLecturesUp
     const parts = [{ type: 'text', text: `Study materials for: ${title}` }];
     fls.forEach(f => {
       if (f.type === 'audio') {
-        parts.push({ type: 'text', text: `[Audio recording: ${f.name} — transcription not available, use context from other materials]` });
+        parts.push({ type: 'text', text: `[Audio recording: ${f.name}; transcription not available, use context from other materials]` });
       } else if (f.type === 'text') {
         parts.push({ type: 'text', text: `\n--- ${f.name} ---\n${f.content}` });
       } else if (f.type === 'pdf') {
@@ -2443,7 +2442,7 @@ Rules: 3-6 topics, 4-6 concepts each, be specific and exam-focused.`;
           <h1 className="text-xl font-bold text-gray-900">📚 Study Guide</h1>
           <select value={courseId} onChange={e => { setCourseId(e.target.value); setPhase('upload'); setFiles([]); setGroups([]); setLectures([]); setDeck([]); }}
             className="px-3 py-1.5 rounded-xl border border-gray-200 text-sm bg-white font-medium text-gray-700 focus:border-orange-400">
-            {courses.map(c => <option key={c.id} value={c.id}>{c.code ? `${c.code} — ` : ''}{c.name}</option>)}
+            {courses.map(c => <option key={c.id} value={c.id}>{c.code ? `${c.code}: ` : ''}{c.name}</option>)}
           </select>
         </div>
         {extra}
@@ -2465,7 +2464,7 @@ Rules: 3-6 topics, 4-6 concepts each, be specific and exam-focused.`;
           </p>
           {!addingMore && (
             <p className="text-xs mt-2 text-orange-600 font-medium">
-              💡 Use clear file names like <span className="font-semibold">Lecture3_SQL.pdf</span> or <span className="font-semibold">Week2_Notes.txt</span> — Finals Coach uses them to group and label your study guide more accurately.
+              💡 Use clear file names like <span className="font-semibold">Lecture3_SQL.pdf</span> or <span className="font-semibold">Week2_Notes.txt</span>. Finals Coach uses them to group and label your study guide more accurately.
             </p>
           )}
         </div>
@@ -2511,7 +2510,7 @@ Rules: 3-6 topics, 4-6 concepts each, be specific and exam-focused.`;
           <div className="grid grid-cols-3 gap-4">
             {[['📄 Slides','PDF exported from Canvas, Blackboard, or email'],
               ['📝 Notes','Typed notes, scanned PDFs, text files, handwritten scans'],
-              ['🎙️ Audio','Lecture recordings (MP3, WAV, M4A) — noted but not transcribed yet']].map(([t, d]) => (
+              ['🎙️ Audio','Lecture recordings (MP3, WAV, M4A), noted but not transcribed yet']].map(([t, d]) => (
               <div key={t} className="text-center p-4 bg-gray-50 rounded-xl">
                 <p className="text-sm font-semibold text-gray-700">{t}</p>
                 <p className="text-xs text-gray-400 mt-1 leading-relaxed">{d}</p>
@@ -2727,7 +2726,7 @@ Rules: 3-6 topics, 4-6 concepts each, be specific and exam-focused.`;
                   </p>
                   {generating ? (
                     <p style={{fontSize:15, fontWeight:600, color:'rgba(255,255,255,0.7)', margin:0, lineHeight:1.4}}>
-                      Building your study guides — lectures will appear as they finish.
+                      Building your study guides. Lectures will appear as they finish.
                     </p>
                   ) : nextLec ? (
                     <>
@@ -3010,7 +3009,7 @@ Rules: 3-6 topics, 4-6 concepts each, be specific and exam-focused.`;
                             <span style={{fontSize:16}}>🎓</span>
                             <div>
                               <p style={{fontSize:12, fontWeight:700, color:'#991b1b', margin:0}}>
-                                Final Exam — {curCourse.name}
+                                Final Exam: {curCourse.name}
                               </p>
                               <p style={{fontSize:10, color:'#dc2626', margin:0}}>
                                 {new Date(curCourse.finalDate+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})} · {daysLeft} day{daysLeft !== 1 ? 's' : ''} away
@@ -3065,7 +3064,7 @@ Rules: 3-6 topics, 4-6 concepts each, be specific and exam-focused.`;
                     ))}
                   </div>
                 ) : (
-                  <p style={{fontSize:12, color:'#9991BF', margin:0}}>No sources — <label style={{color:'#EB7100', cursor:'pointer', fontWeight:600}}>upload one<input ref={addMoreSourcesRef} type="file" multiple accept=".pdf,.txt,.png,.jpg,.jpeg,.mp3,.wav,.m4a" style={{display:'none'}} onChange={handleAddSources} /></label></p>
+                  <p style={{fontSize:12, color:'#9991BF', margin:0}}>No sources. <label style={{color:'#EB7100', cursor:'pointer', fontWeight:600}}>Upload one<input ref={addMoreSourcesRef} type="file" multiple accept=".pdf,.txt,.png,.jpg,.jpeg,.mp3,.wav,.m4a" style={{display:'none'}} onChange={handleAddSources} /></label></p>
                 )}
               </div>
 
@@ -3231,7 +3230,7 @@ Rules: 3-6 topics, 4-6 concepts each, be specific and exam-focused.`;
                   ) : (
                     <div>
                       <p style={{fontSize:12, color:'#9991BF', marginBottom:16}}>
-                        Based on your quiz results — focus on these {reviewTopics.length} concept{reviewTopics.length!==1?'s':''}:
+                        Based on your quiz results, focus on these {reviewTopics.length} concept{reviewTopics.length!==1?'s':''}:
                       </p>
                       <div style={{display:'flex', flexDirection:'column', gap:12}}>
                         {reviewTopics.map((r, i) => (
